@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 收訊者純淨版</title>
+    <title>粒子字體特效 - 專屬時間印記版</title>
     <style>
         * {
             margin: 0;
@@ -90,12 +90,29 @@
             align-items: center;
             gap: 6px;
             flex: 1;
-            min-width: 120px;
+            min-width: 110px;
         }
         
         .setting-item.color-item {
             flex: 0 0 auto;
             min-width: auto;
+        }
+
+        /* 📅 勾選方塊專用樣式 */
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #fff;
+            cursor: pointer;
+            user-select: none;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .checkbox-label input {
+            cursor: pointer;
+            width: 15px;
+            height: 15px;
         }
 
         select, input[type="number"] {
@@ -220,10 +237,8 @@
 </head>
 <body>
 
-    <!-- 頂部提示，寄件者看的到，收訊者會被直接刪除 -->
     <div class="tip" id="mainTip">觸碰畫面粉末飛散 / 點擊下方面板設定</div>
     
-    <!-- 🎥 錄影下載視窗 -->
     <div id="download-overlay" class="overlay">
         <div class="modal">
             <h2 class="success">✨ 錄製完成</h2>
@@ -233,7 +248,6 @@
         </div>
     </div>
 
-    <!-- 🔗 網址傳送視窗 -->
     <div id="link-overlay" class="overlay">
         <div class="modal">
             <h2>🔗 分享網址生成成功</h2>
@@ -243,7 +257,6 @@
         </div>
     </div>
 
-    <!-- 控制面板 -->
     <div class="control-panel" id="uiPanel">
         <div class="row">
             <label>文字輸入</label>
@@ -253,9 +266,15 @@
         </div>
         
         <div class="settings-grid">
-            <div class="setting-item" style="max-width: 120px;">
+            <div class="setting-item" style="max-width: 90px;">
                 <label style="min-width: auto;">秒數</label>
                 <input type="number" id="durationInput" value="4" min="2" max="20">
+            </div>
+
+            <div class="setting-item" style="max-width: 120px;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="includeTimeCheck"> 加上時間
+                </label>
             </div>
             
             <div class="setting-item">
@@ -311,6 +330,18 @@
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
+        }
+
+        // 🕒 獲取當前日期與時間的文字陣列
+        function getFormattedDateTimeStrings() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            return [`${year}/${month}/${day}`, `${hours}:${minutes}`];
         }
 
         class Particle {
@@ -472,7 +503,6 @@
         }
 
         function handleExplode(e) {
-            // 防止點擊 UI 元件時觸發爆炸
             if (e.target.closest('#uiPanel') || e.target.closest('.overlay')) return;
 
             phase = "exploded";
@@ -567,8 +597,17 @@
         }
 
         function commitSettings() {
-            textLines = document.getElementById('textInput').value.split('\n');
-            if(textLines.length === 0 || (textLines.length === 1 && textLines[0] === "")) textLines = [" "];
+            let rawLines = document.getElementById('textInput').value.split('\n');
+            if(rawLines.length === 0 || (rawLines.length === 1 && rawLines[0] === "")) rawLines = [" "];
+            
+            // 🕒 檢查是否有勾選「加上時間」
+            if (document.getElementById('includeTimeCheck').checked) {
+                const timeStrings = getFormattedDateTimeStrings();
+                textLines = [...rawLines, " ", timeStrings[0], timeStrings[1]];
+            } else {
+                textLines = rawLines;
+            }
+
             lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
             currentFont = document.getElementById('fontSelect').value;
             baseColor = document.getElementById('colorPicker').value;
@@ -608,6 +647,11 @@
 
         document.getElementById('fontSelect').addEventListener('change', triggerFontChange);
         document.getElementById('colorPicker').addEventListener('input', triggerFontChange);
+        document.getElementById('includeTimeCheck').addEventListener('change', () => {
+            triggerFontChange();
+            currentLineIndex = 0;
+            startCarousel();
+        });
 
         document.getElementById('sendBtn').addEventListener('click', generateShareLink);
         document.getElementById('recordBtn').addEventListener('click', startAutoRecording);
@@ -625,7 +669,7 @@
             loadTextLine(textLines[currentLineIndex]);
         });
 
-        // ================= 🔗 讀取參數 (✨ 核心修正：收訊者徹底拔除 UI) =================
+        // ================= 🔗 讀取參數（收訊者純淨版邏輯維持不變） =================
         const params = new URLSearchParams(window.location.search);
         if (params.has('lines')) {
             try {
@@ -634,7 +678,7 @@
                 currentFont = params.get('font');
                 baseColor = params.get('color');
                 
-                // 🛑 偵測到是收訊者：直接從 DOM 中完全移除控制面板和提示文字
+                // 徹底移除收訊者的 UI，保留最純淨的畫面
                 const panel = document.getElementById('uiPanel');
                 const tip = document.getElementById('mainTip');
                 if (panel) panel.remove();
@@ -645,10 +689,11 @@
             }
         }
 
-        // 初始化輸入欄位的 UI 顯示值 (只有寄件者看得到)
+        // 初始化編輯欄位的預設值 (只有寄件者看得到)
         const textInputEl = document.getElementById('textInput');
         if (textInputEl) {
-            textInputEl.value = textLines.join('\n');
+            // 如果原本內建時間，先過濾掉，方便二次編輯
+            textInputEl.value = textLines.filter(line => !line.match(/^\d{4}\/\d{2}\/\d{2}$/) && !line.match(/^\d{2}:\d{2}$/) && line !== " ").join('\n');
             document.getElementById('fontSelect').value = currentFont;
             document.getElementById('colorPicker').value = baseColor;
             document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
