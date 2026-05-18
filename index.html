@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>粒子字體特效 - 精準錄影與備份下載版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #080808;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        /* UI 控制面板 */
+        .control-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 16px 20px;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 92%;
+            max-width: 520px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+        
+        .row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .row label {
+            white-space: nowrap;
+            color: #aaa;
+            min-width: 60px;
+        }
+        
+        .textarea-container {
+            flex: 1;
+            display: flex;
+        }
+        textarea {
+            flex: 1;
+            height: 75px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            resize: none;
+            overflow-y: scroll;
+            line-height: 1.5;
+        }
+        textarea::-webkit-scrollbar {
+            width: 6px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        select, input[type="number"], input[type="color"] {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+        }
+        select, input[type="number"] { flex: 1; }
+        input[type="color"] { width: 40px; height: 28px; padding: 0; cursor: pointer; border: none; }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .btn {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .btn-primary { background: #ffffff; color: #000; }
+        .btn-primary:hover { background: #e0e0e0; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.15); color: #fff; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.25); }
+        
+        /* 🔴 錄製按鈕與呼吸燈樣式 */
+        #recordBtn { background: #ff3b30; color: white; }
+        #recordBtn:hover { background: #ff4f44; }
+        .recording { animation: pulse 1s infinite; background: #900 !important; }
+        @keyframes pulse { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
+
+        /* 📥 下載覆蓋彈出視窗 (Modal) */
+        #download-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal {
+            background: #1c1c1e;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 320px;
+            border: 1px solid #3a3a3c;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            color: white;
+        }
+        .modal h2 { margin: 0 0 10px 0; color: #34c759; font-size: 20px; }
+        .modal p { color: #aaa; font-size: 14px; margin-bottom: 20px; line-height: 1.4; }
+        .modal-btn {
+            width: 100%; height: 45px; background: #34c759; color: white;
+            border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-bottom: 12px;
+        }
+        .modal-btn:hover { background: #30b651; }
+
+        .tip {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            letter-spacing: 1px;
+            pointer-events: none;
+            user-select: none;
+            z-index: 5;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="tip" id="mainTip">觸碰畫面粉末飛散 / 點擊下方面板設定</div>
+    
+    <!-- 下載彈出視窗 -->
+    <div id="download-overlay">
+        <div class="modal">
+            <h2>✨ 錄製完成</h2>
+            <p>如果瀏覽器沒有自動下載，請點擊下方按鈕手動儲存影片。</p>
+            <button id="manualDownloadBtn" class="modal-btn">下載特效影片</button>
+            <button onclick="closeModal()" style="background:none; color:#666; border:none; cursor:pointer; font-size:13px;">關閉視窗</button>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="control-panel" id="uiPanel">
+        <div class="row">
+            <label>文字輸入</label>
+            <div class="textarea-container">
+                <textarea id="textInput" placeholder="每行一列文字..."></textarea>
+            </div>
+        </div>
+        <div class="row">
+            <label>每列秒數</label>
+            <input type="number" id="durationInput" value="4" min="2" max="20" style="max-width: 70px;">
+            <label style="min-width:auto; margin-left:5px;">字型</label>
+            <select id="fontSelect">
+                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">預設系統體 (Sans-serif)</option>
+                <option value="'BiauKai', '華康仿宋體', 'STSong', 'SimSun', serif">細緻仿宋體 (Songti)</option>
+                <option value="'PingFang TC', 'Heiti TC', '微軟正黑體', sans-serif">經典粗黑體 (Heiti)</option>
+            </select>
+            <label style="min-width:auto; margin-left:5px;">顏色</label>
+            <input type="color" id="colorPicker" value="#ffffff">
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-secondary" id="applyBtn">更新重播</button>
+            <button class="btn" id="recordBtn">🔴 錄製製作</button>
+            <button class="btn btn-primary" id="sendBtn">🔗 傳送網址</button>
+        </div>
+    </div>
+
+    <canvas id="particleCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        let textLines = ["微風拂過", " ", "細粉飛散", "凝聚成字"];
+        let currentLineIndex = 0;
+        let lineDuration = 4000; 
+        let currentFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        let baseColor = "#ffffff";
+
+        let particles = [];
+        let stateTimer = 0;      
+        let phase = "turbulent"; 
+        let globalTimer = null;  
+
+        // 🎥 參考範例：錄影配置變數
+        let mediaRecorder, recordedChunks = [], isRecording = false;
+
+        const particleSpacing = 3; 
+        const particleRadius = 1.1; 
+        const friction = 0.93;     
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
+        }
+
+        class Particle {
+            constructor(x, y) {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.targetX = x;
+                this.targetY = y;
+                this.vx = (Math.random() - 0.5) * 5;
+                this.vy = (Math.random() - 0.5) * 5;
+                this.noiseSeedX = Math.random() * 100;
+                this.noiseSeedY = Math.random() * 100;
+                this.noiseSpeed = Math.random() * 4 + 2;
+
+                const rgb = hexToRgb(baseColor);
+                const colorVary = Math.floor(Math.random() * 40) - 20; 
+                const r = Math.max(0, Math.min(255, rgb.r + colorVary));
+                const g = Math.max(0, Math.min(255, rgb.g + colorVary));
+                const b = Math.max(0, Math.min(255, rgb.b + colorVary));
+                this.color = `rgba(${r}, ${g}, ${b}, ${Math.random() * 0.7 + 0.3})`;
+            }
+
+            update(deltaTime) {
+                if (phase === "turbulent") {
+                    this.noiseSeedX += 0.05;
+                    this.noiseSeedY += 0.05;
+                    let noiseX = Math.sin(this.noiseSeedX + this.y * 0.01) * this.noiseSpeed;
+                    let noiseY = Math.cos(this.noiseSeedY + this.x * 0.01) * this.noiseSpeed;
+                    this.vx += noiseX * 0.25; 
+                    this.vy += noiseY * 0.25;
+                    this.vx += (this.targetX - this.x) * 0.003; 
+                    this.vy += (this.targetY - this.y) * 0.003;
+                    this.vx *= 0.88;
+                    this.vy *= 0.88;
+                } else if (phase === "gather") {
+                    let dx = this.targetX - this.x;
+                    let dy = this.targetY - this.y;
+                    this.vx += dx * 0.07;
+                    this.vy += dy * 0.07;
+                    this.vx *= 0.68;
+                    this.vy *= 0.68;
+                } else if (phase === "exploded") {
+                    this.vx *= friction;
+                    this.vy *= friction;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, particleRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            explode() {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 18 + 6; 
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+            }
+        }
+
+        function loadTextLine(text) {
+            phase = "turbulent";
+            stateTimer = 0;
+
+            const memCanvas = document.createElement('canvas');
+            const memCtx = memCanvas.getContext('2d');
+            memCanvas.width = width;
+            memCanvas.height = height;
+
+            if (!text || text.trim() === "") {
+                particles.forEach(p => {
+                    p.targetX = width / 2 + (Math.random() - 0.5) * 300;
+                    p.targetY = height / 2 + (Math.random() - 0.5) * 300;
+                });
+                return;
+            }
+
+            const targetDisplayWidth = width * 0.84; 
+            let fontSize = 100; 
+            const isHeiti = currentFont.includes('PingFang');
+            const fontWeight = isHeiti ? '900' : 'bold';
+            
+            memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
+            let metrics = memCtx.measureText(text);
+            fontSize = (targetDisplayWidth / metrics.width) * fontSize;
+            
+            const maxFontSize = height * 0.16;
+            if (fontSize > maxFontSize) fontSize = maxFontSize;
+
+            memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
+            memCtx.fillStyle = "#ffffff";
+            memCtx.textAlign = "center";
+            memCtx.textBaseline = "middle";
+            memCtx.fillText(text, width / 2, height / 2);
+
+            const imgData = memCtx.getImageData(0, 0, width, height).data;
+            let newTargets = [];
+
+            for (let y = 0; y < height; y += particleSpacing) {
+                for (let x = 0; x < width; x += particleSpacing) {
+                    const alpha = imgData[(y * width + x) * 4 + 3];
+                    if (alpha > 128) {
+                        newTargets.push({
+                            x: x + (Math.random() - 0.5) * 1.5,
+                            y: y + (Math.random() - 0.5) * 1.5
+                        });
+                    }
+                }
+            }
+
+            if (particles.length < newTargets.length) {
+                const diff = newTargets.length - particles.length;
+                for (let i = 0; i < diff; i++) {
+                    particles.push(new Particle(width / 2, height / 2));
+                }
+            } else if (particles.length > newTargets.length) {
+                particles.splice(newTargets.length);
+            }
+
+            particles.forEach((p, idx) => {
+                p.targetX = newTargets[idx].x;
+                p.targetY = newTargets[idx].y;
+            });
+        }
+
+        function startCarousel() {
+            clearTimeout(globalTimer);
+            loadTextLine(textLines[currentLineIndex]);
+
+            globalTimer = setTimeout(() => {
+                // 🛑 參考範例：自動偵測最後一列播放結束，觸發停錄
+                if (isRecording && currentLineIndex === textLines.length - 1) {
+                    stopRecording();
+                    return;
+                }
+                currentLineIndex = (currentLineIndex + 1) % textLines.length;
+                startCarousel();
+            }, lineDuration);
+        }
+
+        function handleExplode(e) {
+            if (e.target.closest('#uiPanel') || e.target.closest('#download-overlay')) return;
+
+            phase = "exploded";
+            particles.forEach(p => p.explode());
+            clearTimeout(globalTimer);
+            
+            globalTimer = setTimeout(() => {
+                phase = "turbulent";
+                stateTimer = 0; 
+                globalTimer = setTimeout(() => {
+                    if (isRecording && currentLineIndex === textLines.length - 1) {
+                        stopRecording();
+                        return;
+                    }
+                    currentLineIndex = (currentLineIndex + 1) % textLines.length;
+                    startCarousel();
+                }, Math.max(1500, lineDuration - 2200)); 
+            }, 2200);
+        }
+
+        let lastTime = performance.now();
+        function animate(now) {
+            let deltaTime = now - lastTime;
+            lastTime = now;
+
+            if (phase === "turbulent") {
+                stateTimer += deltaTime;
+                if (stateTimer >= 1000) phase = "gather"; 
+            }
+
+            ctx.fillStyle = 'rgba(8, 8, 8, 0.25)';
+            ctx.fillRect(0, 0, width, height);
+
+            particles.forEach(p => {
+                p.update(deltaTime);
+                p.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // ================= 🎥 融入優化版錄影模組 =================
+        function startAutoRecording() {
+            if (isRecording) return;
+            
+            // 強制重整輸入文字與參數
+            textLines = document.getElementById('textInput').value.split('\n');
+            if(textLines.length === 0 || (textLines.length === 1 && textLines[0] === "")) textLines = [" "];
+            lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
+            currentFont = document.getElementById('fontSelect').value;
+            baseColor = document.getElementById('colorPicker').value;
+
+            currentLineIndex = 0;
+            recordedChunks = [];
+            
+            // 擷取串流 (30FPS，提供足夠的流暢度與合理的檔案大小)
+            const stream = canvas.captureStream(30);
+            
+            // 設定高位元率 (8Mbps) 防止小粒子變糊，使用相容性最好的 WebM 格式
+            mediaRecorder = new MediaRecorder(stream, { 
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 8000000 
+            });
+
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = exportVideo;
+            
+            mediaRecorder.start();
+            isRecording = true;
+            
+            // 加入錄製中呼吸動畫效果
+            document.getElementById('recordBtn').classList.add('recording');
+            document.getElementById('recordBtn').innerText = "錄製製作中";
+            
+            // 開始播放第一句
+            startCarousel();
+        }
+
+        function stopRecording() { 
+            if (isRecording) { 
+                mediaRecorder.stop(); 
+                isRecording = false; 
+                document.getElementById('recordBtn').classList.remove('recording');
+                document.getElementById('recordBtn').innerText = "🔴 錄製製作";
+            } 
+        }
+
+        function exportVideo() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url; 
+            a.download = `Particle_Banner_${Date.now()}.webm`; 
+            a.click(); // 嘗試觸發自動下載
+            
+            // 🔗 參考範例：防漏點擊機制，綁定下載事件到 Modal 按鈕上
+            document.getElementById('manualDownloadBtn').onclick = () => { a.click(); };
+            document.getElementById('download-overlay').style.display = 'flex';
+        }
+
+        function closeModal() { 
+            document.getElementById('download-overlay').style.display = 'none'; 
+            startCarousel(); // 關閉視窗後重啟一般輪播
+        }
+
+        // ================= 其他事件處理 =================
+        document.getElementById('applyBtn').addEventListener('click', () => {
+            textLines = document.getElementById('textInput').value.split('\n');
+            if(textLines.length === 0 || (textLines.length === 1 && textLines[0] === "")) textLines = [" "];
+            lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
+            currentFont = document.getElementById('fontSelect').value;
+            baseColor = document.getElementById('colorPicker').value;
+            currentLineIndex = 0;
+            particles = []; 
+            startCarousel();
+        });
+
+        document.getElementById('sendBtn').addEventListener('click', () => {
+            const lines = document.getElementById('textInput').value.split('\n');
+            const duration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
+            const font = document.getElementById('fontSelect').value;
+            const color = document.getElementById('colorPicker').value;
+
+            const configObj = { lines, duration, font, color };
+            const base64Str = btoa(unescape(encodeURIComponent(JSON.stringify(configObj))));
+            const shareUrl = `${window.location.origin}${window.location.pathname}?msg=${base64Str}`;
+
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert("收件者網址已複製到剪貼簿！");
+            }).catch(() => {
+                alert(`請複製此網址：\n\n${shareUrl}`);
+            });
+        });
+
+        // 綁定新的錄影事件
+        document.getElementById('recordBtn').addEventListener('click', startAutoRecording);
+
+        window.addEventListener('click', handleExplode);
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#uiPanel') || e.target.closest('#download-overlay')) return;
+            e.preventDefault();
+            handleExplode(e);
+        }, { passive: false });
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            loadTextLine(textLines[currentLineIndex]);
+        });
+
+        // 收件者檢查
+        const params = new URLSearchParams(window.location.search);
+        const encodedData = params.get('msg');
+        if (encodedData) {
+            try {
+                const data = JSON.parse(atob(encodedData));
+                textLines = data.lines; lineDuration = data.duration; currentFont = data.font; baseColor = data.color;
+                document.getElementById('uiPanel').classList.add('hidden');
+                document.getElementById('mainTip').innerText = "觸碰螢幕讓細粉散開";
+            } catch (e) {}
+        }
+
+        document.getElementById('textInput').value = textLines.join('\n');
+        startCarousel();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
