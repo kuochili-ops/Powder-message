@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 字元外圍量子發光版</title>
+    <title>粒子字體特效 - 螢火蟲微光雙列時間版</title>
     <style>
         * {
             margin: 0;
@@ -14,7 +14,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #050505; /* 略微調暗底色，讓發光更明顯 */
+            background-color: #040404;
             font-family: "Helvetica Neue", Helvetica, Arial, "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
         }
         canvas {
@@ -45,6 +45,66 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             z-index: 10;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            max-height: 500px;
+            overflow: hidden;
+        }
+        
+        .control-panel.collapsed {
+            max-height: 48px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            gap: 0;
+            background: rgba(15, 15, 15, 0.75);
+            border-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 8px;
+            margin-bottom: 2px;
+        }
+        .control-panel.collapsed .panel-header {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .panel-title {
+            font-weight: bold;
+            color: #aaa;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        .toggle-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-body {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: opacity 0.3s;
+            opacity: 1;
+        }
+        .control-panel.collapsed .panel-body {
+            opacity: 0;
+            pointer-events: none;
+            height: 0;
+            overflow: hidden;
         }
         
         .row {
@@ -65,7 +125,7 @@
         }
         textarea {
             flex: 1;
-            height: 70px;
+            height: 60px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
             color: #fff;
@@ -225,7 +285,7 @@
             top: 20px;
             width: 100%;
             text-align: center;
-            color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.2);
             font-size: 12px;
             letter-spacing: 1px;
             pointer-events: none;
@@ -257,46 +317,53 @@
     </div>
 
     <div class="control-panel" id="uiPanel">
-        <div class="row">
-            <label>文字輸入</label>
-            <div class="textarea-container">
-                <textarea id="textInput" placeholder="每行一列文字..."></textarea>
-            </div>
+        <div class="panel-header">
+            <div class="panel-title">PARTICLE BANNER CONTROLS</div>
+            <button class="toggle-btn" id="panelToggleBtn" onclick="togglePanel()">收合 ▲</button>
         </div>
-        
-        <div class="settings-grid">
-            <div class="setting-item" style="max-width: 90px;">
-                <label style="min-width: auto;">秒數</label>
-                <input type="number" id="durationInput" value="4" min="2" max="20">
-            </div>
 
-            <div class="setting-item" style="max-width: 120px;">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="includeTimeCheck"> 加上時間
-                </label>
-            </div>
-            
-            <div class="setting-item">
-                <label style="min-width: auto;">字型</label>
-                <select id="fontSelect">
-                    <option value='"Helvetica Neue", Helvetica, Arial, "PingFang TC", "Heiti TC", "微軟正黑體", sans-serif'>經典粗黑體 (預設)</option>
-                    <option value='"DFKai-SB", "BiauKai", "PMingLiU", "新細明體", serif'>傳統標楷/明體 (細)</option>
-                    <option value='"Times New Roman", "Georgia", serif'>英數襯線體 (古典)</option>
-                </select>
-            </div>
-            
-            <div class="setting-item color-item">
-                <label style="min-width: auto;">顏色</label>
-                <div class="color-picker-wrapper" id="colorPickerWrapper">
-                    <input type="color" id="colorPicker" value="#ffffff">
+        <div class="panel-body" id="uiPanelBody">
+            <div class="row">
+                <label>文字輸入</label>
+                <div class="textarea-container">
+                    <textarea id="textInput" placeholder="每行一列文字..."></textarea>
                 </div>
             </div>
-        </div>
-        
-        <div class="btn-group">
-            <button class="btn btn-secondary" id="applyBtn">更新重播</button>
-            <button class="btn" id="recordBtn">🔴 錄製製作</button>
-            <button class="btn btn-primary" id="sendBtn">🔗 傳送網址</button>
+            
+            <div class="settings-grid">
+                <div class="setting-item" style="max-width: 90px;">
+                    <label style="min-width: auto;">秒數</label>
+                    <input type="number" id="durationInput" value="4" min="2" max="20">
+                </div>
+
+                <div class="setting-item" style="max-width: 120px;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="includeTimeCheck"> 加上時間
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label style="min-width: auto;">字型</label>
+                    <select id="fontSelect">
+                        <option value='"Helvetica Neue", Helvetica, Arial, "PingFang TC", "Heiti TC", "微軟正黑體", sans-serif'>經典粗黑體 (預設)</option>
+                        <option value='"DFKai-SB", "BiauKai", "PMingLiU", "新細明體", serif'>傳統標楷/明體 (細)</option>
+                        <option value='"Times New Roman", "Georgia", serif'>英數襯線體 (古典)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item color-item">
+                    <label style="min-width: auto;">顏色</label>
+                    <div class="color-picker-wrapper" id="colorPickerWrapper">
+                        <input type="color" id="colorPicker" value="#ffffff">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-secondary" id="applyBtn">更新重播</button>
+                <button class="btn" id="recordBtn">🔴 錄製製作</button>
+                <button class="btn btn-primary" id="sendBtn">🔗 傳送網址</button>
+            </div>
         </div>
     </div>
 
@@ -328,13 +395,33 @@
         const particleRadius = 1.1; 
         const friction = 0.93;     
 
-        function getFreshDateTimeString() {
+        function togglePanel() {
+            const panel = document.getElementById('uiPanel');
+            const btn = document.getElementById('panelToggleBtn');
+            if (panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+                btn.innerText = "收合 ▲";
+            } else {
+                panel.classList.add('collapsed');
+                btn.innerText = "展開 ▼";
+            }
+        }
+
+        // 🌟 獲取精確雙列時間物件
+        function getFreshDateTimeObject() {
             const now = new Date();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const date = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
-            return `${month}/${date} ${hours}:${minutes}`;
+            
+            const weekDays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+            const dayOfWeek = weekDays[now.getDay()];
+
+            return {
+                line1: `${month}/${date} ${dayOfWeek}`, // 第一列：日期 星期
+                line2: `${hours}:${minutes}`            // 第二列：時間
+            };
         }
 
         function hexToRgb(hex) {
@@ -343,17 +430,20 @@
         }
 
         class Particle {
-            constructor(x, y, isGlowParticle = false) {
+            constructor(x, y, isFirefly = false) {
                 this.x = Math.random() * width;
                 this.y = Math.random() * height;
                 this.targetX = x;
                 this.targetY = y;
-                this.vx = (Math.random() - 0.5) * 5;
-                this.vy = (Math.random() - 0.5) * 5;
-                this.noiseSeedX = Math.random() * 100;
-                this.noiseSeedY = Math.random() * 100;
-                this.noiseSpeed = Math.random() * 4 + 2;
-                this.isGlow = isGlowParticle; // 🌟 標記是否為外圍發光微粒
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.isFirefly = isFirefly; 
+                
+                this.noiseSeedX = Math.random() * 500;
+                this.noiseSeedY = Math.random() * 500;
+                this.fireflySpeed = Math.random() * 0.4 + 0.2;
+                this.glowPhase = Math.random() * Math.PI * 2;
+                
                 this.assignColor();
             }
 
@@ -364,10 +454,11 @@
                 const g = Math.max(0, Math.min(255, rgb.g + colorVary));
                 const b = Math.max(0, Math.min(255, rgb.b + colorVary));
                 
-                if (this.isGlow) {
-                    // 🌟 發光粒子：透明度較低、帶點靈動的亮感
-                    this.color = `rgba(${r}, ${g}, ${b}, ${Math.random() * 0.3 + 0.15})`;
-                    this.radius = particleRadius * (Math.random() * 0.8 + 0.5); // 顆粒略小，營造星芒感
+                if (this.isFirefly) {
+                    this.baseAlpha = Math.random() * 0.25 + 0.15;
+                    this.colorRGBA = { r, g, b };
+                    this.color = `rgba(${r}, ${g}, ${b}, ${this.baseAlpha})`;
+                    this.radius = particleRadius * (Math.random() * 1.0 + 0.6); 
                 } else {
                     this.color = `rgba(${r}, ${g}, ${b}, ${Math.random() * 0.7 + 0.4})`;
                     this.radius = particleRadius;
@@ -375,11 +466,17 @@
             }
 
             update(deltaTime) {
+                if (this.isFirefly) {
+                    this.glowPhase += 0.02;
+                    const currentAlpha = this.baseAlpha + Math.sin(this.glowPhase) * 0.12;
+                    this.color = `rgba(${this.colorRGBA.r}, ${this.colorRGBA.g}, ${this.colorRGBA.b}, ${Math.max(0.05, currentAlpha)})`;
+                }
+
                 if (phase === "turbulent") {
                     this.noiseSeedX += 0.05;
                     this.noiseSeedY += 0.05;
-                    let noiseX = Math.sin(this.noiseSeedX + this.y * 0.01) * this.noiseSpeed;
-                    let noiseY = Math.cos(this.noiseSeedY + this.x * 0.01) * this.noiseSpeed;
+                    let noiseX = Math.sin(this.noiseSeedX) * 4;
+                    let noiseY = Math.cos(this.noiseSeedY) * 4;
                     this.vx += noiseX * 0.25; 
                     this.vy += noiseY * 0.25;
                     this.vx += (this.targetX - this.x) * 0.003; 
@@ -390,16 +487,22 @@
                     let dx = this.targetX - this.x;
                     let dy = this.targetY - this.y;
                     
-                    // 🌟 核心修改：如果是外圍發光粒子，讓它在聚集階段往外產生微幅的圓周/放射飄移
-                    if (this.isGlow) {
-                        this.vx += dx * 0.04 + (Math.random() - 0.5) * 0.6;
-                        this.vy += dy * 0.04 + (Math.random() - 0.5) * 0.6;
+                    if (this.isFirefly) {
+                        this.noiseSeedX += 0.015;
+                        this.noiseSeedY += 0.015;
+                        let flyX = Math.sin(this.noiseSeedX) * this.fireflySpeed;
+                        let flyY = Math.cos(this.noiseSeedY) * this.fireflySpeed;
+                        
+                        this.vx += dx * 0.015 + flyX;
+                        this.vy += dy * 0.015 + flyY;
+                        this.vx *= 0.85; 
+                        this.vy *= 0.85;
                     } else {
                         this.vx += dx * 0.07;
                         this.vy += dy * 0.07;
+                        this.vx *= 0.68;
+                        this.vy *= 0.68;
                     }
-                    this.vx *= 0.68;
-                    this.vy *= 0.68;
                 } else if (phase === "exploded") {
                     this.vx *= friction;
                     this.vy *= friction;
@@ -421,91 +524,87 @@
 
             explode() {
                 const angle = Math.random() * Math.PI * 2;
-                // 發光粒子爆開時飛得更遠、更有層次
-                const speed = this.isGlow ? (Math.random() * 22 + 8) : (Math.random() * 18 + 6);
+                const speed = this.isFirefly ? (Math.random() * 24 + 6) : (Math.random() * 18 + 6);
                 this.vx = Math.cos(angle) * speed;
                 this.vy = Math.sin(angle) * speed;
             }
         }
 
-        function loadTextLine(rawText) {
+        function loadTextLine(targetPayload) {
             phase = "turbulent";
             stateTimer = 0;
-
-            const text = String(rawText || "").trim();
-
-            if (text === "") {
-                particles.forEach(p => {
-                    p.targetX = Math.random() * width;
-                    p.targetY = Math.random() * height;
-                });
-                return;
-            }
 
             const memCanvas = document.createElement('canvas');
             const memCtx = memCanvas.getContext('2d');
             memCanvas.width = width;
             memCanvas.height = height;
-            
-            memCtx.font = "10px sans-serif"; 
             memCtx.clearRect(0, 0, width, height);
 
             const isHeiti = currentFont.includes('PingFang') || currentFont.includes('Heiti') || currentFont.includes('Helvetica');
             const fontWeight = isHeiti ? '900' : 'normal';
-            
-            let fontSize = 40;
-            const isTimeFormat = /^[\d/:\s]+$/.test(text);
 
-            if (isTimeFormat) {
-                fontSize = Math.min(width * 0.11, height * 0.10);
+            // 🌟 雙列時間排版渲染
+            if (typeof targetPayload === 'object' && targetPayload.line1) {
+                // 第一列：日期 星期 (字級適中精緻)
+                const fSize1 = Math.min(width * 0.065, height * 0.05); 
+                memCtx.font = `${fontWeight} ${fSize1}px ${currentFont}`;
+                memCtx.fillStyle = "#ffffff";
+                memCtx.textAlign = "center";
+                memCtx.textBaseline = "middle";
+                memCtx.fillText(targetPayload.line1, width / 2, height / 2 - (fSize1 * 0.9));
+
+                // 第二列：時間 (巨大醒目)
+                const fSize2 = Math.min(width * 0.15, height * 0.11); 
+                memCtx.font = `${fontWeight} ${fSize2}px ${currentFont}`;
+                memCtx.fillText(targetPayload.line2, width / 2, height / 2 + (fSize2 * 0.6));
+
             } else {
+                // 普通單列文字排版
+                const text = String(targetPayload || "").trim();
+                if (text === "") {
+                    particles.forEach(p => { p.targetX = Math.random() * width; p.targetY = Math.random() * height; });
+                    return;
+                }
                 memCtx.font = `${fontWeight} 50px ${currentFont}`;
                 let metrics = memCtx.measureText(text);
                 let measuredWidth = metrics.width || (width * 0.5);
-                if (measuredWidth < 5) measuredWidth = 5;
-                fontSize = ((width * 0.82) / measuredWidth) * 50;
-            }
-            
-            const absoluteMaxFontSize = height * 0.14;
-            if (fontSize > absoluteMaxFontSize || isNaN(fontSize) || !isFinite(fontSize)) {
-                fontSize = absoluteMaxFontSize;
-            }
-            if (fontSize < 16) fontSize = 16; 
+                let fontSize = ((width * 0.82) / measuredWidth) * 50;
+                
+                const absoluteMaxFontSize = height * 0.13;
+                if (fontSize > absoluteMaxFontSize) fontSize = absoluteMaxFontSize;
+                if (fontSize < 16) fontSize = 16;
 
-            memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
-            memCtx.fillStyle = "#ffffff";
-            memCtx.textAlign = "center";
-            memCtx.textBaseline = "middle";
-            memCtx.fillText(text, width / 2, height / 2);
+                memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
+                memCtx.fillStyle = "#ffffff";
+                memCtx.textAlign = "center";
+                memCtx.textBaseline = "middle";
+                memCtx.fillText(text, width / 2, height / 2);
+            }
 
             const imgData = memCtx.getImageData(0, 0, width, height).data;
             let newTargets = [];
 
-            // 🌟 物理算法升級：掃描邊緣並生成向外發光的擴散座標點
             for (let y = 0; y < height; y += particleSpacing) {
                 for (let x = 0; x < width; x += particleSpacing) {
                     const idx = (y * width + x) * 4;
                     if (imgData[idx + 3] > 128 && imgData[idx] > 128) {
                         
-                        // 1. 骨架實心粒子
-                        newTargets.push({ x: x, y: y, isGlow: false });
+                        newTargets.push({ x: x, y: y, isFirefly: false });
 
-                        // 2. 邊緣偵測：如果四周有空白，代表這是邊緣！向外散射發光粒子
                         const leftIdx = idx - 4;
                         const rightIdx = idx + 4;
                         const topIdx = idx - (width * 4);
                         const bottomIdx = idx + (width * 4);
 
                         if (imgData[leftIdx + 3] < 50 || imgData[rightIdx + 3] < 50 || imgData[topIdx + 3] < 50 || imgData[bottomIdx + 3] < 50) {
-                            // 往字元外圍隨機放射 1~2 個帶有位移的外圍發光點
-                            const glowCount = Math.random() > 0.4 ? 2 : 1;
-                            for (let g = 0; g < glowCount; g++) {
+                            const ffCount = Math.random() > 0.45 ? 2 : 1;
+                            for (let g = 0; g < ffCount; g++) {
                                 const angle = Math.random() * Math.PI * 2;
-                                const distance = Math.random() * 25 + 5; // 往外擴散 5~30 像素的亮光圈
+                                const dist = Math.random() * 32 + 8;
                                 newTargets.push({
-                                    x: x + Math.cos(angle) * distance,
-                                    y: y + Math.sin(angle) * distance,
-                                    isGlow: true
+                                    x: x + Math.cos(angle) * dist,
+                                    y: y + Math.sin(angle) * dist,
+                                    isFirefly: true
                                 });
                             }
                         }
@@ -514,19 +613,13 @@
             }
 
             if (newTargets.length === 0) {
-                particles.forEach(p => {
-                    p.targetX = Math.random() * width;
-                    p.targetY = Math.random() * height;
-                });
+                particles.forEach(p => { p.targetX = Math.random() * width; p.targetY = Math.random() * height; });
                 return;
             }
 
-            // 重新洗牌並調配粒子池
             if (particles.length < newTargets.length) {
                 const diff = newTargets.length - particles.length;
-                for (let i = 0; i < diff; i++) {
-                    particles.push(new Particle(width / 2, height / 2));
-                }
+                for (let i = 0; i < diff; i++) particles.push(new Particle(width / 2, height / 2));
             } else if (particles.length > newTargets.length) {
                 particles.splice(newTargets.length);
             }
@@ -535,7 +628,7 @@
                 if (particles[idx]) {
                     particles[idx].targetX = t.x;
                     particles[idx].targetY = t.y;
-                    particles[idx].isGlow = t.isGlow; // 賦予發光屬性
+                    particles[idx].isFirefly = t.isFirefly; 
                     particles[idx].assignColor(); 
                 }
             });
@@ -553,7 +646,7 @@
             if (currentLineIndex < totalTextCount) {
                 return textLines[currentLineIndex];
             } else {
-                return getFreshDateTimeString(); 
+                return getFreshDateTimeObject(); 
             }
         }
 
@@ -622,16 +715,13 @@
                 if (stateTimer >= 1000) phase = "gather"; 
             }
 
-            // 殘影底色
-            ctx.fillStyle = 'rgba(5, 5, 5, 0.28)';
+            ctx.fillStyle = 'rgba(4, 4, 4, 0.26)';
             ctx.fillRect(0, 0, width, height);
 
-            // 🌟 渲染核心優化：開啟 Canvas 物理光暈混合模式與陰影模糊
             ctx.save();
-            ctx.globalCompositeOperation = "lighter"; // 讓粒子重疊的地方產生物理曝光亮斑
+            ctx.globalCompositeOperation = "lighter"; 
             
-            // 設定極細微的發光環境光暈
-            ctx.shadowBlur = phase === "gather" ? 4 : 0;
+            ctx.shadowBlur = phase === "gather" ? 5 : 0;
             ctx.shadowColor = baseColor;
 
             particles.forEach(p => {
