@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 獨立時間根治版</title>
+    <title>粒子字體特效 - 緊湊無暫停+日期時間版</title>
     <style>
         * {
             margin: 0;
@@ -15,7 +15,7 @@
             height: 100%;
             overflow: hidden;
             background-color: #080808;
-            font-family: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
+            font-family: "Helvetica Neue", Helvetica, Arial, "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
         }
         canvas {
             display: block;
@@ -279,7 +279,7 @@
             <div class="setting-item">
                 <label style="min-width: auto;">字型</label>
                 <select id="fontSelect">
-                    <option value='"PingFang TC", "Heiti TC", "微軟正黑體", sans-serif'>經典粗黑體 (預設)</option>
+                    <option value='"Helvetica Neue", Helvetica, Arial, "PingFang TC", "Heiti TC", "微軟正黑體", sans-serif'>經典粗黑體 (預設)</option>
                     <option value='"DFKai-SB", "BiauKai", "PMingLiU", "新細明體", serif'>傳統標楷/明體 (細)</option>
                     <option value='"Times New Roman", "Georgia", serif'>英數襯線體 (古典)</option>
                 </select>
@@ -309,13 +309,12 @@
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
 
-        // 🌟 核心結構解耦：文字與時間完全分離，避免陣列記憶體衝突
         let textLines = ["微風拂過", "細粉飛散", "凝聚成字"];
         let includeTime = false; 
         
         let currentLineIndex = 0;
         let lineDuration = 4000; 
-        let currentFont = '"PingFang TC", "Heiti TC", "微軟正黑體", sans-serif';
+        let currentFont = '"Helvetica Neue", Helvetica, Arial, "PingFang TC", "Heiti TC", "微軟正黑體", sans-serif';
         let baseColor = "#ffffff";
 
         let particles = [];
@@ -329,20 +328,19 @@
         const particleRadius = 1.1; 
         const friction = 0.93;     
 
+        // 🌟【新功能：獲取日期 + 時間組合字串】格式為 MM/DD HH:mm (例如 05/19 01:37)
+        function getFreshDateTimeString() {
+            const now = new Date();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const date = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${month}/${date} ${hours}:${minutes}`;
+        }
+
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
-        }
-
-        // 獲取目前時間字串
-        function getFormattedDateTimeStrings() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            return [`${year}年${month}月${day}日`, `${hours}點${minutes}分`];
         }
 
         class Particle {
@@ -414,18 +412,16 @@
             }
         }
 
-        // 🛠️ 終極防護核心：絕對純字串轉換，從物理層面絕育正方形
         function loadTextLine(rawText) {
             phase = "turbulent";
             stateTimer = 0;
 
-            // 確保丟進來的絕對是一條最純淨的文字字串，防止任何 Array 或物件記憶體污染
             const text = String(rawText || "").trim();
 
-            if (text === "" || text === "___BLANK___") {
+            if (text === "") {
                 particles.forEach(p => {
-                    p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.6);
-                    p.targetY = height / 2 + (Math.random() - 0.5) * (height * 0.6);
+                    p.targetX = Math.random() * width;
+                    p.targetY = Math.random() * height;
                 });
                 return;
             }
@@ -434,24 +430,33 @@
             const memCtx = memCanvas.getContext('2d');
             memCanvas.width = width;
             memCanvas.height = height;
+            
+            memCtx.font = "10px sans-serif"; 
             memCtx.clearRect(0, 0, width, height);
 
-            const targetDisplayWidth = width * 0.84; 
-            let fontSize = 60; 
-            const isHeiti = currentFont.includes('PingFang') || currentFont.includes('Heiti');
+            const isHeiti = currentFont.includes('PingFang') || currentFont.includes('Heiti') || currentFont.includes('Helvetica');
             const fontWeight = isHeiti ? '900' : 'normal';
             
-            memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
-            let metrics = memCtx.measureText(text);
-            
-            let measuredWidth = metrics.width;
-            if (!measuredWidth || measuredWidth < 1) measuredWidth = 1;
+            let fontSize = 40;
+            // 判斷是否為含日期的時間格式（偵測斜線、空格與冒號數字）
+            const isTimeFormat = /^[\d/:\s]+$/.test(text);
 
-            fontSize = (targetDisplayWidth / measuredWidth) * fontSize;
+            if (isTimeFormat) {
+                // 因為加入了日期，字串變長，略微縮小物理寬度比例（改為手機寬度的 11%）以防止溢出螢幕外
+                fontSize = Math.min(width * 0.11, height * 0.10);
+            } else {
+                memCtx.font = `${fontWeight} 50px ${currentFont}`;
+                let metrics = memCtx.measureText(text);
+                let measuredWidth = metrics.width || (width * 0.5);
+                if (measuredWidth < 5) measuredWidth = 5;
+                fontSize = ((width * 0.82) / measuredWidth) * 50;
+            }
             
-            const maxFontSize = height * 0.14;
-            if (fontSize > maxFontSize) fontSize = maxFontSize;
-            if (fontSize < 16 || isNaN(fontSize) || !isFinite(fontSize)) fontSize = 16; 
+            const absoluteMaxFontSize = height * 0.14;
+            if (fontSize > absoluteMaxFontSize || isNaN(fontSize) || !isFinite(fontSize)) {
+                fontSize = absoluteMaxFontSize;
+            }
+            if (fontSize < 16) fontSize = 16; 
 
             memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
             memCtx.fillStyle = "#ffffff";
@@ -476,8 +481,8 @@
 
             if (newTargets.length === 0) {
                 particles.forEach(p => {
-                    p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.6);
-                    p.targetY = height / 2 + (Math.random() - 0.5) * (height * 0.6);
+                    p.targetX = Math.random() * width;
+                    p.targetY = Math.random() * height;
                 });
                 return;
             }
@@ -497,8 +502,8 @@
                     p.targetY = newTargets[idx].y;
                     p.assignColor(); 
                 } else {
-                    p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.5);
-                    p.targetY = height / 2 + (Math.random() - 0.5) * (height * 0.5);
+                    p.targetX = Math.random() * width;
+                    p.targetY = Math.random() * height;
                 }
             });
 
@@ -506,27 +511,20 @@
             memCanvas.height = 0;
         }
 
+        // 🌟【優化核心：完全砍掉 ___BLANK___】讓文字直接接替，省去中間定格停頓的時間
         function getCurrentTargetText() {
             const totalTextCount = textLines.length;
             
-            // 如果沒勾選時間，單純輪播文字
             if (!includeTime) {
                 if (currentLineIndex >= totalTextCount) currentLineIndex = 0;
                 return textLines[currentLineIndex];
             }
 
-            // 如果有勾選時間，擴充總輪播長度：原本文字 -> 空白 -> 日期 -> 時間
-            const timeSnapshot = getFormattedDateTimeStrings();
-            const totalCycleLength = totalTextCount + 3; // 文字 + 留白 + 日期 + 時間
-
             if (currentLineIndex < totalTextCount) {
                 return textLines[currentLineIndex];
-            } else if (currentLineIndex === totalTextCount) {
-                return "___BLANK___";
-            } else if (currentLineIndex === totalTextCount + 1) {
-                return timeSnapshot[0]; // 日期字串
             } else {
-                return timeSnapshot[1]; // 時間字串
+                // 直接回傳含日期的時間，不再塞入任何空白頁
+                return getFreshDateTimeString(); 
             }
         }
 
@@ -545,7 +543,8 @@
 
             globalTimer = setTimeout(() => {
                 const totalTextCount = textLines.length;
-                const maxIndex = includeTime ? (totalTextCount + 2) : (totalTextCount - 1);
+                // 🌟 最大索引從 (totalTextCount + 1) 縮減為 totalTextCount (因為少了空白過渡頁)
+                const maxIndex = includeTime ? totalTextCount : (totalTextCount - 1);
 
                 if (isRecording && currentLineIndex === maxIndex) {
                     stopRecording();
@@ -553,9 +552,7 @@
                 }
 
                 currentLineIndex++;
-                if (includeTime && currentLineIndex > totalTextCount + 2) {
-                    currentLineIndex = 0;
-                } else if (!includeTime && currentLineIndex >= totalTextCount) {
+                if (currentLineIndex > maxIndex) {
                     currentLineIndex = 0;
                 }
 
@@ -575,15 +572,14 @@
                 stateTimer = 0; 
                 globalTimer = setTimeout(() => {
                     const totalTextCount = textLines.length;
-                    const maxIndex = includeTime ? (totalTextCount + 2) : (totalTextCount - 1);
+                    const maxIndex = includeTime ? totalTextCount : (totalTextCount - 1);
 
                     if (isRecording && currentLineIndex === maxIndex) {
                         stopRecording();
                         return;
                     }
                     currentLineIndex++;
-                    if (includeTime && currentLineIndex > totalTextCount + 2) currentLineIndex = 0;
-                    if (!includeTime && currentLineIndex >= totalTextCount) currentLineIndex = 0;
+                    if (currentLineIndex > maxIndex) currentLineIndex = 0;
                     
                     startCarousel();
                 }, Math.max(1500, lineDuration - 2200)); 
@@ -667,7 +663,6 @@
             let rawLines = document.getElementById('textInput').value.split('\n').map(l => l.trim()).filter(l => l !== "");
             textLines = rawLines.length === 0 ? [""] : rawLines;
             
-            // 🌟 核心開關解耦
             includeTime = document.getElementById('includeTimeCheck').checked;
 
             lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
