@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>粒子字體特效 - 16:9 全字元解碼修正版</title>
+    <title>粒子字體特效 - 16:9 完美置中解碼版</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+        /* 整個背景維持純黑，並透過 flex 讓子元素（舞台）在任何情況下都垂直、水平絕對置中 */
         body, html {
             width: 100%;
             height: 100%;
@@ -32,8 +33,13 @@
             background-color: #040404; 
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
             z-index: 1;
+            /* 確保內部的 canvas 和提示能正常定位 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
+        /* 當手機直立或橫放時的定比自適應：確保永遠維持 16:9 且置中 */
         @media (min-aspect-ratio: 16/9) {
             .canvas-container { width: auto; height: 100%; }
         }
@@ -447,6 +453,24 @@
             return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
         }
 
+        // 🌟 核心防錯修正：智慧多重 URL 解碼器（對抗 Double Encoding）
+        function smartDecode(str) {
+            let decoded = str;
+            let previous = "";
+            let safetyVal = 0;
+            // 只要解碼後的字串還包含百分比「%」，且還沒完全還原，就繼續解碼，最多執行 5 次防止無窮迴圈
+            while (decoded.includes('%') && decoded !== previous && safetyVal < 5) {
+                previous = decoded;
+                try {
+                    decoded = decodeURIComponent(decoded);
+                } catch(e) {
+                    break; 
+                }
+                safetyVal++;
+            }
+            return decoded;
+        }
+
         class Particle {
             constructor(x, y, isFirefly = false) {
                 this.x = Math.random() * width;
@@ -814,7 +838,7 @@
             commitSettings();
 
             const urlParams = new URLSearchParams();
-            // 使用 encodeURIComponent 強化編碼
+            // 🌟 網址生成端：使用標準 encodeURIComponent 封裝每一行
             urlParams.set('lines', textLines.map(encodeURIComponent).join('||')); 
             urlParams.set('time', includeTime ? "1" : "0");
             urlParams.set('duration', lineDuration);
@@ -866,26 +890,27 @@
             loadTextLine(getCurrentTargetText());
         });
 
-        // ================= 🔗 智慧解碼參數讀取模組 =================
+        // ================= 🔗 終極防錯智慧解碼模組 =================
         const params = new URLSearchParams(window.location.search);
         if (params.has('lines')) {
             try {
-                // 🌟 關鍵修正：加入 decodeURIComponent 確保特殊符號與 Emoji 不會導致 Crash
                 let rawParamLines = params.get('lines').split('||');
-                textLines = rawParamLines.map(line => {
-                    try {
-                        return decodeURIComponent(line);
-                    } catch(e) {
-                        return line; // 如果本來就沒被編碼，退回原始文字
-                    }
-                });
+                // 🌟 使用 smartDecode 進行多重遞迴解碼，完美解決二次編碼 (%25) 導致空白的問題
+                textLines = rawParamLines.map(line => smartDecode(line));
 
                 includeTime = params.get('time') === "1";
                 lineDuration = parseInt(params.get('duration'), 10);
-                currentFont = params.get('font');
-                baseColor = params.get('color');
                 
-                // 由外部網址開啟時，直接移除控制面板與提示，呈現純淨 16:9 電影視覺
+                // 處理字型編碼
+                if (params.has('font')) {
+                    currentFont = smartDecode(params.get('font'));
+                }
+                // 處理顏色編碼
+                if (params.has('color')) {
+                    baseColor = smartDecode(params.get('color'));
+                }
+                
+                // 純欣賞模式：移除多餘面板與提示
                 const panel = document.getElementById('uiPanel');
                 const tip = document.getElementById('mainTip');
                 if (panel) panel.remove();
