@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>粒子字體特效 - 16:9 介面徹底置底版</title>
+    <title>粒子字體特效 - 16:9 全字元解碼修正版</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        /* 整個背景維持純黑 */
         body, html {
             width: 100%;
             height: 100%;
@@ -35,7 +34,6 @@
             z-index: 1;
         }
 
-        /* 當手機直立或橫放時的定比自適應 */
         @media (min-aspect-ratio: 16/9) {
             .canvas-container { width: auto; height: 100%; }
         }
@@ -50,7 +48,7 @@
             cursor: pointer;
         }
         
-        /* 📱 UI 控制面板：徹底移出畫布容器，改為固定在手機螢幕最底端（直立時剛好在下黑邊） */
+        /* 📱 UI 控制面板：固定在手機螢幕最底端（直立時在下黑邊區） */
         .control-panel {
             position: fixed;
             bottom: 0;
@@ -60,7 +58,7 @@
             border-top: 1px solid rgba(255, 255, 255, 0.12);
             border-left: 1px solid rgba(255, 255, 255, 0.08);
             border-right: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 12px 16px env(safe-area-inset-bottom, 12px) 16px; /* 支援手機底端安全區域 */
+            padding: 12px 16px env(safe-area-inset-bottom, 12px) 16px;
             border-radius: 16px 16px 0 0;
             color: #fff;
             font-size: 13px;
@@ -77,7 +75,6 @@
             max-height: 260px;
         }
         
-        /* 收合狀態：隱藏絕大部分區塊，沉降到最邊緣 */
         .control-panel.collapsed {
             max-height: 40px;
             padding-top: 8px;
@@ -257,7 +254,6 @@
         .recording { animation: pulse 1s infinite; background: #900 !important; }
         @keyframes pulse { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
 
-        /* 全域彈出視窗（浮動在最上層，置中顯示） */
         .overlay {
             display: none;
             position: fixed;
@@ -587,7 +583,14 @@
             memCtx.textBaseline = "middle";
             memCtx.fillText(text, width / 2, height / 2);
 
-            const imgData = memCtx.getImageData(0, 0, width, height).data;
+            let imgData;
+            try {
+                imgData = memCtx.getImageData(0, 0, width, height).data;
+            } catch(e) {
+                console.error("ImageData 讀取失敗", e);
+                return;
+            }
+            
             let newTargets = [];
 
             for (let y = 0; y < height; y += particleSpacing) {
@@ -811,7 +814,8 @@
             commitSettings();
 
             const urlParams = new URLSearchParams();
-            urlParams.set('lines', textLines.join('||')); 
+            // 使用 encodeURIComponent 強化編碼
+            urlParams.set('lines', textLines.map(encodeURIComponent).join('||')); 
             urlParams.set('time', includeTime ? "1" : "0");
             urlParams.set('duration', lineDuration);
             urlParams.set('font', currentFont);
@@ -862,23 +866,33 @@
             loadTextLine(getCurrentTargetText());
         });
 
-        // ================= 🔗 讀取參數 =================
+        // ================= 🔗 智慧解碼參數讀取模組 =================
         const params = new URLSearchParams(window.location.search);
         if (params.has('lines')) {
             try {
-                textLines = params.get('lines').split('||');
+                // 🌟 關鍵修正：加入 decodeURIComponent 確保特殊符號與 Emoji 不會導致 Crash
+                let rawParamLines = params.get('lines').split('||');
+                textLines = rawParamLines.map(line => {
+                    try {
+                        return decodeURIComponent(line);
+                    } catch(e) {
+                        return line; // 如果本來就沒被編碼，退回原始文字
+                    }
+                });
+
                 includeTime = params.get('time') === "1";
                 lineDuration = parseInt(params.get('duration'), 10);
                 currentFont = params.get('font');
                 baseColor = params.get('color');
                 
+                // 由外部網址開啟時，直接移除控制面板與提示，呈現純淨 16:9 電影視覺
                 const panel = document.getElementById('uiPanel');
                 const tip = document.getElementById('mainTip');
                 if (panel) panel.remove();
                 if (tip) tip.remove();
                 
             } catch (e) {
-                console.error("網址參數解析錯誤", e);
+                console.error("網址參數解析遭遇錯誤", e);
             }
         }
 
