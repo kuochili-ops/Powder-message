@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 螢火蟲微光雙列時間版</title>
+    <title>粒子字體特效 - 時間分兩次顯示版</title>
     <style>
         * {
             margin: 0;
@@ -395,6 +395,7 @@
         const particleRadius = 1.1; 
         const friction = 0.93;     
 
+        // 面板收合控制
         function togglePanel() {
             const panel = document.getElementById('uiPanel');
             const btn = document.getElementById('panelToggleBtn');
@@ -407,21 +408,20 @@
             }
         }
 
-        // 🌟 獲取精確雙列時間物件
-        function getFreshDateTimeObject() {
+        // 🌟 分兩次顯示的時間獲取函數
+        function getFreshDateString() {
             const now = new Date();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const date = String(now.getDate()).padStart(2, '0');
+            const weekDays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+            return `${month}/${date} ${weekDays[now.getDay()]}`; // 第一次：日期 星期
+        }
+
+        function getFreshTimeString() {
+            const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
-            
-            const weekDays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-            const dayOfWeek = weekDays[now.getDay()];
-
-            return {
-                line1: `${month}/${date} ${dayOfWeek}`, // 第一列：日期 星期
-                line2: `${hours}:${minutes}`            // 第二列：時間
-            };
+            return `${hours}:${minutes}`; // 第二次：純時間
         }
 
         function hexToRgb(hex) {
@@ -530,9 +530,15 @@
             }
         }
 
-        function loadTextLine(targetPayload) {
+        function loadTextLine(rawText) {
             phase = "turbulent";
             stateTimer = 0;
+
+            const text = String(rawText || "").trim();
+            if (text === "") {
+                particles.forEach(p => { p.targetX = Math.random() * width; p.targetY = Math.random() * height; });
+                return;
+            }
 
             const memCanvas = document.createElement('canvas');
             const memCtx = memCanvas.getContext('2d');
@@ -543,43 +549,20 @@
             const isHeiti = currentFont.includes('PingFang') || currentFont.includes('Heiti') || currentFont.includes('Helvetica');
             const fontWeight = isHeiti ? '900' : 'normal';
 
-            // 🌟 雙列時間排版渲染
-            if (typeof targetPayload === 'object' && targetPayload.line1) {
-                // 第一列：日期 星期 (字級適中精緻)
-                const fSize1 = Math.min(width * 0.065, height * 0.05); 
-                memCtx.font = `${fontWeight} ${fSize1}px ${currentFont}`;
-                memCtx.fillStyle = "#ffffff";
-                memCtx.textAlign = "center";
-                memCtx.textBaseline = "middle";
-                memCtx.fillText(targetPayload.line1, width / 2, height / 2 - (fSize1 * 0.9));
+            memCtx.font = `${fontWeight} 50px ${currentFont}`;
+            let metrics = memCtx.measureText(text);
+            let measuredWidth = metrics.width || (width * 0.5);
+            let fontSize = ((width * 0.82) / measuredWidth) * 50;
+            
+            const absoluteMaxFontSize = height * 0.13;
+            if (fontSize > absoluteMaxFontSize) fontSize = absoluteMaxFontSize;
+            if (fontSize < 16) fontSize = 16;
 
-                // 第二列：時間 (巨大醒目)
-                const fSize2 = Math.min(width * 0.15, height * 0.11); 
-                memCtx.font = `${fontWeight} ${fSize2}px ${currentFont}`;
-                memCtx.fillText(targetPayload.line2, width / 2, height / 2 + (fSize2 * 0.6));
-
-            } else {
-                // 普通單列文字排版
-                const text = String(targetPayload || "").trim();
-                if (text === "") {
-                    particles.forEach(p => { p.targetX = Math.random() * width; p.targetY = Math.random() * height; });
-                    return;
-                }
-                memCtx.font = `${fontWeight} 50px ${currentFont}`;
-                let metrics = memCtx.measureText(text);
-                let measuredWidth = metrics.width || (width * 0.5);
-                let fontSize = ((width * 0.82) / measuredWidth) * 50;
-                
-                const absoluteMaxFontSize = height * 0.13;
-                if (fontSize > absoluteMaxFontSize) fontSize = absoluteMaxFontSize;
-                if (fontSize < 16) fontSize = 16;
-
-                memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
-                memCtx.fillStyle = "#ffffff";
-                memCtx.textAlign = "center";
-                memCtx.textBaseline = "middle";
-                memCtx.fillText(text, width / 2, height / 2);
-            }
+            memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
+            memCtx.fillStyle = "#ffffff";
+            memCtx.textAlign = "center";
+            memCtx.textBaseline = "middle";
+            memCtx.fillText(text, width / 2, height / 2);
 
             const imgData = memCtx.getImageData(0, 0, width, height).data;
             let newTargets = [];
@@ -637,16 +620,22 @@
             memCanvas.height = 0;
         }
 
+        // 🌟 核心修改：精確控制時間分兩步進入佇列
         function getCurrentTargetText() {
             const totalTextCount = textLines.length;
             if (!includeTime) {
                 if (currentLineIndex >= totalTextCount) currentLineIndex = 0;
                 return textLines[currentLineIndex];
             }
+            
+            // 如果開了時間選項：
+            // 佇列長度 = 使用者文字量 + 2 (因為時間拆成兩段)
             if (currentLineIndex < totalTextCount) {
                 return textLines[currentLineIndex];
+            } else if (currentLineIndex === totalTextCount) {
+                return getFreshDateString(); // 分開顯示第一段：日期 星期
             } else {
-                return getFreshDateTimeObject(); 
+                return getFreshTimeString(); // 分開顯示第二段：純時間
             }
         }
 
@@ -665,7 +654,8 @@
 
             globalTimer = setTimeout(() => {
                 const totalTextCount = textLines.length;
-                const maxIndex = includeTime ? totalTextCount : (totalTextCount - 1);
+                // 🌟 最大索引值判定
+                const maxIndex = includeTime ? (totalTextCount + 1) : (totalTextCount - 1);
 
                 if (isRecording && currentLineIndex === maxIndex) {
                     stopRecording();
@@ -691,7 +681,7 @@
                 stateTimer = 0; 
                 globalTimer = setTimeout(() => {
                     const totalTextCount = textLines.length;
-                    const maxIndex = includeTime ? totalTextCount : (totalTextCount - 1);
+                    const maxIndex = includeTime ? (totalTextCount + 1) : (totalTextCount - 1);
 
                     if (isRecording && currentLineIndex === maxIndex) {
                         stopRecording();
