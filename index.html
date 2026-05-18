@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 精準錄影與備份下載版</title>
+    <title>粒子字體特效 - 終極穩定版</title>
     <style>
         * {
             margin: 0;
@@ -119,14 +119,13 @@
         .btn-secondary { background: rgba(255, 255, 255, 0.15); color: #fff; }
         .btn-secondary:hover { background: rgba(255, 255, 255, 0.25); }
         
-        /* 🔴 錄製按鈕與呼吸燈樣式 */
         #recordBtn { background: #ff3b30; color: white; }
         #recordBtn:hover { background: #ff4f44; }
         .recording { animation: pulse 1s infinite; background: #900 !important; }
         @keyframes pulse { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
 
-        /* 📥 下載覆蓋彈出視窗 (Modal) */
-        #download-overlay {
+        /* 📥 全域通用彈出視窗 (Modal Overlay) */
+        .overlay {
             display: none;
             position: absolute;
             top: 0;
@@ -142,21 +141,36 @@
         }
         .modal {
             background: #1c1c1e;
-            padding: 30px;
+            padding: 25px;
             border-radius: 20px;
             text-align: center;
-            max-width: 320px;
+            width: 100%;
+            max-width: 340px;
             border: 1px solid #3a3a3c;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             color: white;
         }
-        .modal h2 { margin: 0 0 10px 0; color: #34c759; font-size: 20px; }
-        .modal p { color: #aaa; font-size: 14px; margin-bottom: 20px; line-height: 1.4; }
+        .modal h2 { margin: 0 0 10px 0; color: #007AFF; font-size: 18px; }
+        .modal h2.success { color: #34c759; }
+        .modal p { color: #aaa; font-size: 13px; margin-bottom: 15px; line-height: 1.4; }
         .modal-btn {
-            width: 100%; height: 45px; background: #34c759; color: white;
-            border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-bottom: 12px;
+            width: 100%; height: 45px; background: #007AFF; color: white;
+            border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px;
         }
-        .modal-btn:hover { background: #30b651; }
+        .modal-btn.success { background: #34c759; }
+        
+        /* 專門放置複製連結的輸入框 */
+        #shareUrlDisplay {
+            width: 100%;
+            padding: 10px;
+            background: #2c2c2e;
+            border: 1px solid #48484a;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 12px;
+            margin-bottom: 5px;
+            outline: none;
+        }
 
         .tip {
             position: absolute;
@@ -177,13 +191,23 @@
 
     <div class="tip" id="mainTip">觸碰畫面粉末飛散 / 點擊下方面板設定</div>
     
-    <!-- 下載彈出視窗 -->
-    <div id="download-overlay">
+    <!-- 🎥 錄影下載視窗 -->
+    <div id="download-overlay" class="overlay">
         <div class="modal">
-            <h2>✨ 錄製完成</h2>
-            <p>如果瀏覽器沒有自動下載，請點擊下方按鈕手動儲存影片。</p>
-            <button id="manualDownloadBtn" class="modal-btn">下載特效影片</button>
-            <button onclick="closeModal()" style="background:none; color:#666; border:none; cursor:pointer; font-size:13px;">關閉視窗</button>
+            <h2 class="success">✨ 錄製完成</h2>
+            <p>如果您的瀏覽器沒有自動觸發下載，請點擊下方按鈕手動儲存影片。</p>
+            <button id="manualDownloadBtn" class="modal-btn success">下載特效影片</button>
+            <button onclick="closeModal('download-overlay')" style="background:none; color:#666; border:none; cursor:pointer; font-size:13px; margin-top:12px;">關閉視窗</button>
+        </div>
+    </div>
+
+    <!-- 🔗 網址傳送視窗 (解決防禦剪貼簿失敗問題) -->
+    <div id="link-overlay" class="overlay">
+        <div class="modal">
+            <h2>🔗 分享網址生成成功</h2>
+            <p>已嘗試自動複製。若失效，請長按下方框內文字進行全選複製：</p>
+            <input type="text" id="shareUrlDisplay" readonly onclick="this.select();">
+            <button onclick="closeModal('link-overlay')" class="modal-btn">確定並返回</button>
         </div>
     </div>
 
@@ -200,8 +224,8 @@
             <input type="number" id="durationInput" value="4" min="2" max="20" style="max-width: 70px;">
             <label style="min-width:auto; margin-left:5px;">字型</label>
             <select id="fontSelect">
-                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">預設系統體 (Sans-serif)</option>
-                <option value="'BiauKai', '華康仿宋體', 'STSong', 'SimSun', serif">細緻仿宋體 (Songti)</option>
+                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">預設系統體 (Sans-serif)</option>
+                <option value="'DFKai-SB', 'BiauKai', '華康仿宋體', 'STSong', serif">細緻仿宋體 (Songti)</option>
                 <option value="'PingFang TC', 'Heiti TC', '微軟正黑體', sans-serif">經典粗黑體 (Heiti)</option>
             </select>
             <label style="min-width:auto; margin-left:5px;">顏色</label>
@@ -234,7 +258,6 @@
         let phase = "turbulent"; 
         let globalTimer = null;  
 
-        // 🎥 參考範例：錄影配置變數
         let mediaRecorder, recordedChunks = [], isRecording = false;
 
         const particleSpacing = 3; 
@@ -257,9 +280,13 @@
                 this.noiseSeedX = Math.random() * 100;
                 this.noiseSeedY = Math.random() * 100;
                 this.noiseSpeed = Math.random() * 4 + 2;
+                this.assignColor();
+            }
 
+            // 🎨 恢復色彩系統：每次重新整理都緊抓目前的 baseColor 核心
+            assignColor() {
                 const rgb = hexToRgb(baseColor);
-                const colorVary = Math.floor(Math.random() * 40) - 20; 
+                const colorVary = Math.floor(Math.random() * 40) - 20; // 允許輕微色差顆粒感
                 const r = Math.max(0, Math.min(255, rgb.r + colorVary));
                 const g = Math.max(0, Math.min(255, rgb.g + colorVary));
                 const b = Math.max(0, Math.min(255, rgb.b + colorVary));
@@ -312,6 +339,7 @@
             }
         }
 
+        // 核心：自適應直式螢幕寬度與取樣
         function loadTextLine(text) {
             phase = "turbulent";
             stateTimer = 0;
@@ -331,7 +359,7 @@
 
             const targetDisplayWidth = width * 0.84; 
             let fontSize = 100; 
-            const isHeiti = currentFont.includes('PingFang');
+            const isHeiti = currentFont.includes('PingFang') || currentFont.includes('Heiti');
             const fontWeight = isHeiti ? '900' : 'bold';
             
             memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
@@ -374,6 +402,7 @@
             particles.forEach((p, idx) => {
                 p.targetX = newTargets[idx].x;
                 p.targetY = newTargets[idx].y;
+                p.assignColor(); // 🎨 強制調用，確保換色按鈕點擊後立刻更新現存顆粒
             });
         }
 
@@ -382,7 +411,6 @@
             loadTextLine(textLines[currentLineIndex]);
 
             globalTimer = setTimeout(() => {
-                // 🛑 參考範例：自動偵測最後一列播放結束，觸發停錄
                 if (isRecording && currentLineIndex === textLines.length - 1) {
                     stopRecording();
                     return;
@@ -393,7 +421,7 @@
         }
 
         function handleExplode(e) {
-            if (e.target.closest('#uiPanel') || e.target.closest('#download-overlay')) return;
+            if (e.target.closest('#uiPanel') || e.target.closest('.overlay')) return;
 
             phase = "exploded";
             particles.forEach(p => p.explode());
@@ -434,24 +462,15 @@
             requestAnimationFrame(animate);
         }
 
-        // ================= 🎥 融入優化版錄影模組 =================
+        // ================= 🎥 錄影模組 =================
         function startAutoRecording() {
             if (isRecording) return;
-            
-            // 強制重整輸入文字與參數
-            textLines = document.getElementById('textInput').value.split('\n');
-            if(textLines.length === 0 || (textLines.length === 1 && textLines[0] === "")) textLines = [" "];
-            lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
-            currentFont = document.getElementById('fontSelect').value;
-            baseColor = document.getElementById('colorPicker').value;
+            commitSettings(); // 先提交設定
 
             currentLineIndex = 0;
             recordedChunks = [];
-            
-            // 擷取串流 (30FPS，提供足夠的流暢度與合理的檔案大小)
             const stream = canvas.captureStream(30);
             
-            // 設定高位元率 (8Mbps) 防止小粒子變糊，使用相容性最好的 WebM 格式
             mediaRecorder = new MediaRecorder(stream, { 
                 mimeType: 'video/webm;codecs=vp9',
                 videoBitsPerSecond: 8000000 
@@ -463,11 +482,9 @@
             mediaRecorder.start();
             isRecording = true;
             
-            // 加入錄製中呼吸動畫效果
             document.getElementById('recordBtn').classList.add('recording');
             document.getElementById('recordBtn').innerText = "錄製製作中";
             
-            // 開始播放第一句
             startCarousel();
         }
 
@@ -483,57 +500,80 @@
         function exportVideo() {
             const blob = new Blob(recordedChunks, { type: 'video/webm' });
             const url = URL.createObjectURL(blob);
-            
             const a = document.createElement('a');
             a.href = url; 
             a.download = `Particle_Banner_${Date.now()}.webm`; 
-            a.click(); // 嘗試觸發自動下載
+            a.click(); 
             
-            // 🔗 參考範例：防漏點擊機制，綁定下載事件到 Modal 按鈕上
             document.getElementById('manualDownloadBtn').onclick = () => { a.click(); };
             document.getElementById('download-overlay').style.display = 'flex';
         }
 
-        function closeModal() { 
-            document.getElementById('download-overlay').style.display = 'none'; 
-            startCarousel(); // 關閉視窗後重啟一般輪播
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if(id === 'download-overlay') startCarousel(); 
         }
 
-        // ================= 其他事件處理 =================
-        document.getElementById('applyBtn').addEventListener('click', () => {
+        // ================= 🛠 核心設定同步函數 =================
+        function commitSettings() {
             textLines = document.getElementById('textInput').value.split('\n');
             if(textLines.length === 0 || (textLines.length === 1 && textLines[0] === "")) textLines = [" "];
             lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
             currentFont = document.getElementById('fontSelect').value;
             baseColor = document.getElementById('colorPicker').value;
-            currentLineIndex = 0;
-            particles = []; 
-            startCarousel();
-        });
+        }
 
-        document.getElementById('sendBtn').addEventListener('click', () => {
-            const lines = document.getElementById('textInput').value.split('\n');
-            const duration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
-            const font = document.getElementById('fontSelect').value;
-            const color = document.getElementById('colorPicker').value;
+        // ================= 🔗 網址安全傳送模組 =================
+        function generateShareLink() {
+            commitSettings();
 
-            const configObj = { lines, duration, font, color };
+            const configObj = {
+                lines: textLines,
+                duration: lineDuration,
+                font: currentFont,
+                color: baseColor
+            };
+
             const base64Str = btoa(unescape(encodeURIComponent(JSON.stringify(configObj))));
             const shareUrl = `${window.location.origin}${window.location.pathname}?msg=${base64Str}`;
 
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("收件者網址已複製到剪貼簿！");
-            }).catch(() => {
-                alert(`請複製此網址：\n\n${shareUrl}`);
-            });
+            // 1. 設置到彈出對話框中的 input，確保即使剪貼簿阻擋也能手動複製
+            const displayInput = document.getElementById('shareUrlDisplay');
+            displayInput.value = shareUrl;
+            document.getElementById('link-overlay').style.display = 'flex';
+
+            // 2. 嘗試使用系統剪貼簿自動複製（若環境支援則直接成功）
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert("網址已同步自動複製到您的剪貼簿！可以直接去貼上傳送囉。");
+                }).catch(err => {
+                    console.log("自動複製受瀏覽器安全限制，改由手動複製欄位處理");
+                });
+            }
+        }
+
+        // ================= 事件處理監聽 =================
+        // 按下更新重播
+        document.getElementById('applyBtn').addEventListener('click', () => {
+            commitSettings();
+            currentLineIndex = 0;
+            particles = []; // 清空重建
+            startCarousel();
         });
 
-        // 綁定新的錄影事件
+        // 按下字型選單：立刻觸發重新取樣 (解決換字型沒變化的 Bug)
+        document.getElementById('fontSelect').addEventListener('change', () => {
+            commitSettings();
+            loadTextLine(textLines[currentLineIndex]); 
+        });
+
+        // 綁定其餘按鈕
+        document.getElementById('sendBtn').addEventListener('click', generateShareLink);
         document.getElementById('recordBtn').addEventListener('click', startAutoRecording);
 
         window.addEventListener('click', handleExplode);
         window.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#uiPanel') || e.target.closest('#download-overlay')) return;
+            if (e.target.closest('#uiPanel') || e.target.closest('.overlay')) return;
             e.preventDefault();
             handleExplode(e);
         }, { passive: false });
@@ -544,7 +584,7 @@
             loadTextLine(textLines[currentLineIndex]);
         });
 
-        // 收件者檢查
+        // 收件者檢查機制
         const params = new URLSearchParams(window.location.search);
         const encodedData = params.get('msg');
         if (encodedData) {
@@ -556,7 +596,12 @@
             } catch (e) {}
         }
 
+        // 初始化輸入欄位的 UI 顯示值
         document.getElementById('textInput').value = textLines.join('\n');
+        document.getElementById('fontSelect').value = currentFont;
+        document.getElementById('colorPicker').value = baseColor;
+        document.getElementById('durationInput').value = lineDuration / 1000;
+
         startCarousel();
         requestAnimationFrame(animate);
     </script>
