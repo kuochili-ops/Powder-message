@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 符號正方形完美修正版</title>
+    <title>粒子字體特效 - 獨立時間根治版</title>
     <style>
         * {
             margin: 0;
@@ -309,7 +309,10 @@
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
 
+        // 🌟 核心結構解耦：文字與時間完全分離，避免陣列記憶體衝突
         let textLines = ["微風拂過", "細粉飛散", "凝聚成字"];
+        let includeTime = false; 
+        
         let currentLineIndex = 0;
         let lineDuration = 4000; 
         let currentFont = '"PingFang TC", "Heiti TC", "微軟正黑體", sans-serif';
@@ -331,7 +334,7 @@
             return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
         }
 
-        // ✨ 核心修正：將時間與日期完全「中文化」，避開可能造成正方形錯誤的特殊符號 (/) 與 (:)
+        // 獲取目前時間字串
         function getFormattedDateTimeStrings() {
             const now = new Date();
             const year = now.getFullYear();
@@ -339,7 +342,6 @@
             const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
-            
             return [`${year}年${month}月${day}日`, `${hours}點${minutes}分`];
         }
 
@@ -412,11 +414,15 @@
             }
         }
 
-        function loadTextLine(text) {
+        // 🛠️ 終極防護核心：絕對純字串轉換，從物理層面絕育正方形
+        function loadTextLine(rawText) {
             phase = "turbulent";
             stateTimer = 0;
 
-            if (!text || text.trim() === "" || text === "___BLANK___") {
+            // 確保丟進來的絕對是一條最純淨的文字字串，防止任何 Array 或物件記憶體污染
+            const text = String(rawText || "").trim();
+
+            if (text === "" || text === "___BLANK___") {
                 particles.forEach(p => {
                     p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.6);
                     p.targetY = height / 2 + (Math.random() - 0.5) * (height * 0.6);
@@ -428,18 +434,24 @@
             const memCtx = memCanvas.getContext('2d');
             memCanvas.width = width;
             memCanvas.height = height;
+            memCtx.clearRect(0, 0, width, height);
 
             const targetDisplayWidth = width * 0.84; 
-            let fontSize = 100; 
+            let fontSize = 60; 
             const isHeiti = currentFont.includes('PingFang') || currentFont.includes('Heiti');
             const fontWeight = isHeiti ? '900' : 'normal';
             
             memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
             let metrics = memCtx.measureText(text);
-            fontSize = (targetDisplayWidth / metrics.width) * fontSize;
             
-            const maxFontSize = height * 0.16;
+            let measuredWidth = metrics.width;
+            if (!measuredWidth || measuredWidth < 1) measuredWidth = 1;
+
+            fontSize = (targetDisplayWidth / measuredWidth) * fontSize;
+            
+            const maxFontSize = height * 0.14;
             if (fontSize > maxFontSize) fontSize = maxFontSize;
+            if (fontSize < 16 || isNaN(fontSize) || !isFinite(fontSize)) fontSize = 16; 
 
             memCtx.font = `${fontWeight} ${fontSize}px ${currentFont}`;
             memCtx.fillStyle = "#ffffff";
@@ -452,14 +464,22 @@
 
             for (let y = 0; y < height; y += particleSpacing) {
                 for (let x = 0; x < width; x += particleSpacing) {
-                    const alpha = imgData[(y * width + x) * 4 + 3];
-                    if (alpha > 128) {
+                    const idx = (y * width + x) * 4;
+                    if (imgData[idx + 3] > 128 && imgData[idx] > 128) {
                         newTargets.push({
                             x: x + (Math.random() - 0.5) * 1.5,
                             y: y + (Math.random() - 0.5) * 1.5
                         });
                     }
                 }
+            }
+
+            if (newTargets.length === 0) {
+                particles.forEach(p => {
+                    p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.6);
+                    p.targetY = height / 2 + (Math.random() - 0.5) * (height * 0.6);
+                });
+                return;
             }
 
             if (particles.length < newTargets.length) {
@@ -472,31 +492,73 @@
             }
 
             particles.forEach((p, idx) => {
-                p.targetX = newTargets[idx].x;
-                p.targetY = newTargets[idx].y;
-                p.assignColor(); 
+                if (newTargets[idx] && !isNaN(newTargets[idx].x) && !isNaN(newTargets[idx].y)) {
+                    p.targetX = newTargets[idx].x;
+                    p.targetY = newTargets[idx].y;
+                    p.assignColor(); 
+                } else {
+                    p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.5);
+                    p.targetY = height / 2 + (Math.random() - 0.5) * (height * 0.5);
+                }
             });
+
+            memCanvas.width = 0;
+            memCanvas.height = 0;
+        }
+
+        function getCurrentTargetText() {
+            const totalTextCount = textLines.length;
+            
+            // 如果沒勾選時間，單純輪播文字
+            if (!includeTime) {
+                if (currentLineIndex >= totalTextCount) currentLineIndex = 0;
+                return textLines[currentLineIndex];
+            }
+
+            // 如果有勾選時間，擴充總輪播長度：原本文字 -> 空白 -> 日期 -> 時間
+            const timeSnapshot = getFormattedDateTimeStrings();
+            const totalCycleLength = totalTextCount + 3; // 文字 + 留白 + 日期 + 時間
+
+            if (currentLineIndex < totalTextCount) {
+                return textLines[currentLineIndex];
+            } else if (currentLineIndex === totalTextCount) {
+                return "___BLANK___";
+            } else if (currentLineIndex === totalTextCount + 1) {
+                return timeSnapshot[0]; // 日期字串
+            } else {
+                return timeSnapshot[1]; // 時間字串
+            }
         }
 
         function triggerFontChange() {
             commitSettings();
             let count = 0;
             const forceUpdate = setInterval(() => {
-                loadTextLine(textLines[currentLineIndex]);
-                if (count++ > 4) clearInterval(forceUpdate);
-            }, 150);
+                loadTextLine(getCurrentTargetText());
+                if (count++ > 2) clearInterval(forceUpdate);
+            }, 100);
         }
 
         function startCarousel() {
             clearTimeout(globalTimer);
-            loadTextLine(textLines[currentLineIndex]);
+            loadTextLine(getCurrentTargetText());
 
             globalTimer = setTimeout(() => {
-                if (isRecording && currentLineIndex === textLines.length - 1) {
+                const totalTextCount = textLines.length;
+                const maxIndex = includeTime ? (totalTextCount + 2) : (totalTextCount - 1);
+
+                if (isRecording && currentLineIndex === maxIndex) {
                     stopRecording();
                     return;
                 }
-                currentLineIndex = (currentLineIndex + 1) % textLines.length;
+
+                currentLineIndex++;
+                if (includeTime && currentLineIndex > totalTextCount + 2) {
+                    currentLineIndex = 0;
+                } else if (!includeTime && currentLineIndex >= totalTextCount) {
+                    currentLineIndex = 0;
+                }
+
                 startCarousel();
             }, lineDuration);
         }
@@ -512,11 +574,17 @@
                 phase = "turbulent";
                 stateTimer = 0; 
                 globalTimer = setTimeout(() => {
-                    if (isRecording && currentLineIndex === textLines.length - 1) {
+                    const totalTextCount = textLines.length;
+                    const maxIndex = includeTime ? (totalTextCount + 2) : (totalTextCount - 1);
+
+                    if (isRecording && currentLineIndex === maxIndex) {
                         stopRecording();
                         return;
                     }
-                    currentLineIndex = (currentLineIndex + 1) % textLines.length;
+                    currentLineIndex++;
+                    if (includeTime && currentLineIndex > totalTextCount + 2) currentLineIndex = 0;
+                    if (!includeTime && currentLineIndex >= totalTextCount) currentLineIndex = 0;
+                    
                     startCarousel();
                 }, Math.max(1500, lineDuration - 2200)); 
             }, 2200);
@@ -597,14 +665,10 @@
 
         function commitSettings() {
             let rawLines = document.getElementById('textInput').value.split('\n').map(l => l.trim()).filter(l => l !== "");
-            if(rawLines.length === 0) rawLines = [""];
+            textLines = rawLines.length === 0 ? [""] : rawLines;
             
-            if (document.getElementById('includeTimeCheck').checked) {
-                const timeStrings = getFormattedDateTimeStrings();
-                textLines = [...rawLines, "___BLANK___", timeStrings[0], timeStrings[1]];
-            } else {
-                textLines = rawLines;
-            }
+            // 🌟 核心開關解耦
+            includeTime = document.getElementById('includeTimeCheck').checked;
 
             lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
             currentFont = document.getElementById('fontSelect').value;
@@ -619,6 +683,7 @@
 
             const urlParams = new URLSearchParams();
             urlParams.set('lines', textLines.join('||')); 
+            urlParams.set('time', includeTime ? "1" : "0");
             urlParams.set('duration', lineDuration);
             urlParams.set('font', currentFont);
             urlParams.set('color', baseColor);
@@ -645,6 +710,7 @@
 
         document.getElementById('fontSelect').addEventListener('change', triggerFontChange);
         document.getElementById('colorPicker').addEventListener('input', triggerFontChange);
+        
         document.getElementById('includeTimeCheck').addEventListener('change', () => {
             triggerFontChange();
             currentLineIndex = 0;
@@ -664,7 +730,7 @@
         window.addEventListener('resize', () => {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
-            loadTextLine(textLines[currentLineIndex]);
+            loadTextLine(getCurrentTargetText());
         });
 
         // ================= 🔗 讀取參數 =================
@@ -672,6 +738,7 @@
         if (params.has('lines')) {
             try {
                 textLines = params.get('lines').split('||');
+                includeTime = params.get('time') === "1";
                 lineDuration = parseInt(params.get('duration'), 10);
                 currentFont = params.get('font');
                 baseColor = params.get('color');
@@ -686,20 +753,19 @@
             }
         }
 
-        // 初始化編輯欄位 (過濾掉時間欄位，避免重複累加)
+        // 初始化編輯欄位
         const textInputEl = document.getElementById('textInput');
         if (textInputEl) {
-            textInputEl.value = textLines.filter(line => 
-                !line.includes('年') && !line.includes('月') && !line.includes('日') &&
-                !line.includes('點') && !line.includes('分') && 
-                line !== "___BLANK___"
-            ).join('\n');
+            textInputEl.value = textLines.join('\n');
+            document.getElementById('includeTimeCheck').checked = includeTime;
             document.getElementById('fontSelect').value = currentFont;
             document.getElementById('colorPicker').value = baseColor;
             document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
             document.getElementById('durationInput').value = lineDuration / 1000;
         }
 
+        // 啟動
+        commitSettings();
         startCarousel();
         requestAnimationFrame(animate);
     </script>
