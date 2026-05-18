@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>粒子字體特效 - 16:9 完美置中解碼版</title>
+    <title>粒子字體特效 - 16:9 終極結構穩定版</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        /* 整個背景維持純黑，並透過 flex 讓子元素（舞台）在任何情況下都垂直、水平絕對置中 */
+        /* 純黑背景，並利用 Flexbox 讓 16:9 畫布在任何設備、任何模式下都絕對垂直水平置中 */
         body, html {
             width: 100%;
             height: 100%;
@@ -22,29 +22,32 @@
             align-items: center;
         }
 
-        /* 🎬 16:9 橫向固定黃金比例舞台 */
+        /* 🎬 16:9 橫向固定黃金比例舞台 (不依賴下方控制面板，完全獨立置中) */
         .canvas-container {
             position: relative;
             width: 100%;
-            height: 100%;
             max-width: 100vw;
-            max-height: 100vh;
             aspect-ratio: 16 / 9; 
             background-color: #040404; 
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
             z-index: 1;
-            /* 確保內部的 canvas 和提示能正常定位 */
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        /* 當手機直立或橫放時的定比自適應：確保永遠維持 16:9 且置中 */
+        /* 當螢幕太寬（如橫放或電腦）或太高（如直立手機）時的定比極限自適應 */
         @media (min-aspect-ratio: 16/9) {
-            .canvas-container { width: auto; height: 100%; }
+            .canvas-container {
+                height: 100vh;
+                width: calc(100vh * 16 / 9);
+            }
         }
         @media (max-aspect-ratio: 16/9) {
-            .canvas-container { width: 100%; height: auto; }
+            .canvas-container {
+                width: 100vw;
+                height: calc(100vw * 9 / 16);
+            }
         }
 
         canvas {
@@ -54,7 +57,7 @@
             cursor: pointer;
         }
         
-        /* 📱 UI 控制面板：固定在手機螢幕最底端（直立時在下黑邊區） */
+        /* 📱 UI 控制面板：固定在手機螢幕最底端 */
         .control-panel {
             position: fixed;
             bottom: 0;
@@ -453,12 +456,11 @@
             return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
         }
 
-        // 🌟 核心防錯修正：智慧多重 URL 解碼器（對抗 Double Encoding）
+        // 智慧多重 URL 解碼器（對抗 Double Encoding）
         function smartDecode(str) {
             let decoded = str;
             let previous = "";
             let safetyVal = 0;
-            // 只要解碼後的字串還包含百分比「%」，且還沒完全還原，就繼續解碼，最多執行 5 次防止無窮迴圈
             while (decoded.includes('%') && decoded !== previous && safetyVal < 5) {
                 previous = decoded;
                 try {
@@ -582,21 +584,27 @@
                 return;
             }
 
+            // 確保每次重新計算時容器寬高是正常的
+            if (width === 0 || height === 0) {
+                width = canvas.width = container.clientWidth;
+                height = canvas.height = container.clientHeight;
+            }
+
             const memCanvas = document.createElement('canvas');
             const memCtx = memCanvas.getContext('2d');
-            memCanvas.width = width;
-            memCanvas.height = height;
-            memCtx.clearRect(0, 0, width, height);
+            memCanvas.width = width || 600;
+            memCanvas.height = height || 337;
+            memCtx.clearRect(0, 0, memCanvas.width, memCanvas.height);
 
             const isHeiti = currentFont.includes('PingFang') || currentFont.includes('Heiti') || currentFont.includes('Helvetica');
             const fontWeight = isHeiti ? '900' : 'normal';
 
             memCtx.font = `${fontWeight} 50px ${currentFont}`;
             let metrics = memCtx.measureText(text);
-            let measuredWidth = metrics.width || (width * 0.5);
+            let measuredWidth = metrics.width || (memCanvas.width * 0.5);
             
-            let fontSizeBasedOnWidth = ((width * 0.78) / measuredWidth) * 50;
-            let fontSizeBasedOnHeight = height * 0.48;
+            let fontSizeBasedOnWidth = ((memCanvas.width * 0.78) / measuredWidth) * 50;
+            let fontSizeBasedOnHeight = memCanvas.height * 0.48;
             
             let fontSize = Math.min(fontSizeBasedOnWidth, fontSizeBasedOnHeight);
             if (fontSize < 14) fontSize = 14;
@@ -605,11 +613,11 @@
             memCtx.fillStyle = "#ffffff";
             memCtx.textAlign = "center";
             memCtx.textBaseline = "middle";
-            memCtx.fillText(text, width / 2, height / 2);
+            memCtx.fillText(text, memCanvas.width / 2, memCanvas.height / 2);
 
             let imgData;
             try {
-                imgData = memCtx.getImageData(0, 0, width, height).data;
+                imgData = memCtx.getImageData(0, 0, memCanvas.width, memCanvas.height).data;
             } catch(e) {
                 console.error("ImageData 讀取失敗", e);
                 return;
@@ -617,17 +625,17 @@
             
             let newTargets = [];
 
-            for (let y = 0; y < height; y += particleSpacing) {
-                for (let x = 0; x < width; x += particleSpacing) {
-                    const idx = (y * width + x) * 4;
+            for (let y = 0; y < memCanvas.height; y += particleSpacing) {
+                for (let x = 0; x < memCanvas.width; x += particleSpacing) {
+                    const idx = (y * memCanvas.width + x) * 4;
                     if (imgData[idx + 3] > 128 && imgData[idx] > 128) {
                         
                         newTargets.push({ x: x, y: y, isFirefly: false });
 
                         const leftIdx = idx - 4;
                         const rightIdx = idx + 4;
-                        const topIdx = idx - (width * 4);
-                        const bottomIdx = idx + (width * 4);
+                        const topIdx = idx - (memCanvas.width * 4);
+                        const bottomIdx = idx + (memCanvas.width * 4);
 
                         if (imgData[leftIdx + 3] < 50 || imgData[rightIdx + 3] < 50 || imgData[topIdx + 3] < 50 || imgData[bottomIdx + 3] < 50) {
                             const ffCount = Math.random() > 0.45 ? 2 : 1;
@@ -822,11 +830,13 @@
         }
 
         function commitSettings() {
-            let rawLines = document.getElementById('textInput').value.split('\n').map(l => l.trim()).filter(l => l !== "");
+            const txtEl = document.getElementById('textInput');
+            if(!txtEl) return; // 欣賞模式下沒有欄位直接跳過
+
+            let rawLines = txtEl.value.split('\n').map(l => l.trim()).filter(l => l !== "");
             textLines = rawLines.length === 0 ? [""] : rawLines;
             
             includeTime = document.getElementById('includeTimeCheck').checked;
-
             lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
             currentFont = document.getElementById('fontSelect').value;
             baseColor = document.getElementById('colorPicker').value;
@@ -838,7 +848,6 @@
             commitSettings();
 
             const urlParams = new URLSearchParams();
-            // 🌟 網址生成端：使用標準 encodeURIComponent 封裝每一行
             urlParams.set('lines', textLines.map(encodeURIComponent).join('||')); 
             urlParams.set('time', includeTime ? "1" : "0");
             urlParams.set('duration', lineDuration);
@@ -858,70 +867,31 @@
             }
         }
 
-        // ================= 事件處理監聽 =================
-        document.getElementById('applyBtn').addEventListener('click', () => {
-            triggerFontChange();
-            currentLineIndex = 0;
-            startCarousel();
-        });
-
-        document.getElementById('fontSelect').addEventListener('change', triggerFontChange);
-        document.getElementById('colorPicker').addEventListener('input', triggerFontChange);
-        
-        document.getElementById('includeTimeCheck').addEventListener('change', () => {
-            triggerFontChange();
-            currentLineIndex = 0;
-            startCarousel();
-        });
-
-        document.getElementById('sendBtn').addEventListener('click', generateShareLink);
-        document.getElementById('recordBtn').addEventListener('click', startAutoRecording);
-
-        window.addEventListener('click', handleExplode);
-        window.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#uiPanel') || e.target.closest('.overlay')) return;
-            e.preventDefault();
-            handleExplode(e);
-        }, { passive: false });
-
-        window.addEventListener('resize', () => {
-            width = canvas.width = container.clientWidth;
-            height = canvas.height = container.clientHeight;
-            loadTextLine(getCurrentTargetText());
-        });
-
-        // ================= 🔗 終極防錯智慧解碼模組 =================
+        // ================= 🔗 智慧解碼與顯示模式切換 =================
         const params = new URLSearchParams(window.location.search);
         if (params.has('lines')) {
             try {
                 let rawParamLines = params.get('lines').split('||');
-                // 🌟 使用 smartDecode 進行多重遞迴解碼，完美解決二次編碼 (%25) 導致空白的問題
                 textLines = rawParamLines.map(line => smartDecode(line));
 
                 includeTime = params.get('time') === "1";
                 lineDuration = parseInt(params.get('duration'), 10);
                 
-                // 處理字型編碼
-                if (params.has('font')) {
-                    currentFont = smartDecode(params.get('font'));
-                }
-                // 處理顏色編碼
-                if (params.has('color')) {
-                    baseColor = smartDecode(params.get('color'));
-                }
+                if (params.has('font')) currentFont = smartDecode(params.get('font'));
+                if (params.has('color')) baseColor = smartDecode(params.get('color'));
                 
-                // 純欣賞模式：移除多餘面板與提示
+                // 🌟 核心修正：欣賞模式下使用 display: none 隱藏，不破壞 HTML 高度骨架
                 const panel = document.getElementById('uiPanel');
                 const tip = document.getElementById('mainTip');
-                if (panel) panel.remove();
-                if (tip) tip.remove();
+                if (panel) panel.style.display = 'none';
+                if (tip) tip.style.display = 'none';
                 
             } catch (e) {
-                console.error("網址參數解析遭遇錯誤", e);
+                console.error("網址參數解析錯誤", e);
             }
         }
 
-        // 初始化編輯欄位
+        // 初始化編輯欄位（僅在非欣賞模式下執行）
         const textInputEl = document.getElementById('textInput');
         if (textInputEl) {
             textInputEl.value = textLines.join('\n');
@@ -930,9 +900,42 @@
             document.getElementById('colorPicker').value = baseColor;
             document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
             document.getElementById('durationInput').value = lineDuration / 1000;
+            
+            // 綁定事件
+            document.getElementById('applyBtn').addEventListener('click', () => {
+                triggerFontChange();
+                currentLineIndex = 0;
+                startCarousel();
+            });
+            document.getElementById('fontSelect').addEventListener('change', triggerFontChange);
+            document.getElementById('colorPicker').addEventListener('input', triggerFontChange);
+            document.getElementById('includeTimeCheck').addEventListener('change', () => {
+                triggerFontChange();
+                currentLineIndex = 0;
+                startCarousel();
+            });
+            document.getElementById('sendBtn').addEventListener('click', generateShareLink);
+            document.getElementById('recordBtn').addEventListener('click', startAutoRecording);
         }
 
-        // 啟動
+        // 視窗自適應
+        window.addEventListener('resize', () => {
+            width = canvas.width = container.clientWidth;
+            height = canvas.height = container.clientHeight;
+            loadTextLine(getCurrentTargetText());
+        });
+
+        // 觸控點擊爆炸
+        window.addEventListener('click', handleExplode);
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#uiPanel') || e.target.closest('.overlay')) return;
+            e.preventDefault();
+            handleExplode(e);
+        }, { passive: false });
+
+        // 啟動與初始化寬高
+        width = canvas.width = container.clientWidth;
+        height = canvas.height = container.clientHeight;
         commitSettings();
         startCarousel();
         requestAnimationFrame(animate);
