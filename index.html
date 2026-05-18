@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 專屬時間印記版</title>
+    <title>粒子字體特效 - 完美無正方形修正版</title>
     <style>
         * {
             margin: 0;
@@ -98,7 +98,6 @@
             min-width: auto;
         }
 
-        /* 📅 勾選方塊專用樣式 */
         .checkbox-label {
             display: flex;
             align-items: center;
@@ -310,7 +309,8 @@
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
 
-        let textLines = ["微風拂過", " ", "細粉飛散", "凝聚成字"];
+        // 🛑 移除原本帶有純空格的初始文字，改用乾淨字串
+        let textLines = ["微風拂過", "細粉飛散", "凝聚成字"];
         let currentLineIndex = 0;
         let lineDuration = 4000; 
         let currentFont = '"PingFang TC", "Heiti TC", "微軟正黑體", sans-serif';
@@ -332,7 +332,6 @@
             return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
         }
 
-        // 🕒 獲取當前日期與時間的文字陣列
         function getFormattedDateTimeStrings() {
             const now = new Date();
             const year = now.getFullYear();
@@ -417,18 +416,19 @@
             phase = "turbulent";
             stateTimer = 0;
 
+            // ✨ 核心修正：如果偵測到是完全空白、空格、或是特定留白代號，粒子直接散開到隨機位置，不再渲染 Canvas 避免產生實心正方形
+            if (!text || text.trim() === "" || text === "___BLANK___") {
+                particles.forEach(p => {
+                    p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.6);
+                    p.targetY = height / 2 + (Math.random() - 0.5) * (height * 0.6);
+                });
+                return;
+            }
+
             const memCanvas = document.createElement('canvas');
             const memCtx = memCanvas.getContext('2d');
             memCanvas.width = width;
             memCanvas.height = height;
-
-            if (!text || text.trim() === "") {
-                particles.forEach(p => {
-                    p.targetX = width / 2 + (Math.random() - 0.5) * 300;
-                    p.targetY = height / 2 + (Math.random() - 0.5) * 300;
-                });
-                return;
-            }
 
             const targetDisplayWidth = width * 0.84; 
             let fontSize = 100; 
@@ -597,13 +597,14 @@
         }
 
         function commitSettings() {
-            let rawLines = document.getElementById('textInput').value.split('\n');
-            if(rawLines.length === 0 || (rawLines.length === 1 && rawLines[0] === "")) rawLines = [" "];
+            // 過濾掉真正的空白空行
+            let rawLines = document.getElementById('textInput').value.split('\n').map(l => l.trim()).filter(l => l !== "");
+            if(rawLines.length === 0) rawLines = [""];
             
-            // 🕒 檢查是否有勾選「加上時間」
+            // ✨ 修正：如果加上時間，中間改用安全留白代碼 "___BLANK___" 來過渡，徹底移除純空格
             if (document.getElementById('includeTimeCheck').checked) {
                 const timeStrings = getFormattedDateTimeStrings();
-                textLines = [...rawLines, " ", timeStrings[0], timeStrings[1]];
+                textLines = [...rawLines, "___BLANK___", timeStrings[0], timeStrings[1]];
             } else {
                 textLines = rawLines;
             }
@@ -669,7 +670,7 @@
             loadTextLine(textLines[currentLineIndex]);
         });
 
-        // ================= 🔗 讀取參數（收訊者純淨版邏輯維持不變） =================
+        // ================= 🔗 讀取參數 =================
         const params = new URLSearchParams(window.location.search);
         if (params.has('lines')) {
             try {
@@ -678,7 +679,6 @@
                 currentFont = params.get('font');
                 baseColor = params.get('color');
                 
-                // 徹底移除收訊者的 UI，保留最純淨的畫面
                 const panel = document.getElementById('uiPanel');
                 const tip = document.getElementById('mainTip');
                 if (panel) panel.remove();
@@ -689,11 +689,14 @@
             }
         }
 
-        // 初始化編輯欄位的預設值 (只有寄件者看得到)
+        // 初始化編輯欄位 (過濾掉時間與安全留白代碼)
         const textInputEl = document.getElementById('textInput');
         if (textInputEl) {
-            // 如果原本內建時間，先過濾掉，方便二次編輯
-            textInputEl.value = textLines.filter(line => !line.match(/^\d{4}\/\d{2}\/\d{2}$/) && !line.match(/^\d{2}:\d{2}$/) && line !== " ").join('\n');
+            textInputEl.value = textLines.filter(line => 
+                !line.match(/^\d{4}\/\d{2}\/\d{2}$/) && 
+                !line.match(/^\d{2}:\d{2}$/) && 
+                line !== "___BLANK___"
+            ).join('\n');
             document.getElementById('fontSelect').value = currentFont;
             document.getElementById('colorPicker').value = baseColor;
             document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
