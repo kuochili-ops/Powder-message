@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 100%不亂碼與字型修復版</title>
+    <title>粒子字體特效 - 介面優化完美版</title>
     <style>
         * {
             margin: 0;
@@ -24,25 +24,26 @@
             cursor: pointer;
         }
         
-        /* UI 控制面板 */
+        /* 📱 UI 控制面板響應式優化 */
         .control-panel {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(20, 20, 20, 0.9);
+            background: rgba(20, 20, 20, 0.92);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 16px 20px;
-            border-radius: 14px;
+            padding: 16px;
+            border-radius: 16px;
             color: #fff;
             font-size: 13px;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            width: 92%;
-            max-width: 520px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-            backdrop-filter: blur(12px);
+            width: 94%;
+            max-width: 500px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             z-index: 10;
         }
         
@@ -53,8 +54,9 @@
         }
         .row label {
             white-space: nowrap;
-            color: #aaa;
-            min-width: 60px;
+            color: #ccc;
+            min-width: 55px;
+            font-weight: 500;
         }
         
         .textarea-container {
@@ -63,47 +65,84 @@
         }
         textarea {
             flex: 1;
-            height: 75px;
-            background: rgba(255, 255, 255, 0.05);
+            height: 70px;
+            background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff;
             padding: 8px;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 13px;
             outline: none;
             resize: none;
-            overflow-y: scroll;
-            line-height: 1.5;
-        }
-        textarea::-webkit-scrollbar {
-            width: 6px;
-        }
-        textarea::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
+            line-height: 1.4;
         }
 
-        select, input[type="number"], input[type="color"] {
-            background: rgba(255, 255, 255, 0.05);
+        /* 🛠 針對設定項目的彈性包裹排版（解決遮蔽問題） */
+        .settings-grid {
+            display: flex;
+            flex-wrap: wrap; /* 自動換行 */
+            gap: 12px;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .setting-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 120px; /* 確保手機上能適度切開換行 */
+        }
+        
+        /* 當寬度夠小，將顏色與字型獨立分配空間，防止擠壓 */
+        .setting-item.color-item {
+            flex: 0 0 auto;
+            min-width: auto;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff;
-            padding: 5px 8px;
-            border-radius: 6px;
+            padding: 6px 8px;
+            border-radius: 8px;
             font-size: 13px;
             outline: none;
+            height: 32px;
         }
-        select, input[type="number"] { flex: 1; }
-        input[type="color"] { width: 40px; height: 28px; padding: 0; cursor: pointer; border: none; }
+        
+        /* 🎨 優化後的顏色選擇器外觀 */
+        .color-picker-wrapper {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        input[type="color"] {
+            position: absolute;
+            top: -5px; left: -5px;
+            width: 44px; height: 44px;
+            padding: 0; margin: 0;
+            border: none;
+            cursor: pointer;
+            background: none;
+        }
 
+        /* 按鈕群組 */
         .btn-group {
             display: flex;
             gap: 8px;
-            margin-top: 4px;
+            margin-top: 2px;
         }
         .btn {
             flex: 1;
-            padding: 10px 12px;
-            border-radius: 6px;
+            height: 38px;
+            border-radius: 8px;
             font-weight: bold;
             font-size: 12px;
             cursor: pointer;
@@ -124,14 +163,12 @@
         .recording { animation: pulse 1s infinite; background: #900 !important; }
         @keyframes pulse { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
 
-        /* 📥 全域通用彈出視窗 */
+        /* 📥 全域彈出視窗 */
         .overlay {
             display: none;
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0,0,0,0.85);
             z-index: 1000;
             flex-direction: column;
@@ -183,7 +220,6 @@
             user-select: none;
             z-index: 5;
         }
-        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -200,7 +236,7 @@
         </div>
     </div>
 
-    <!-- 🔗 網址傳送視窗 (全新防亂碼輸入框) -->
+    <!-- 🔗 網址傳送視窗 -->
     <div id="link-overlay" class="overlay">
         <div class="modal">
             <h2>🔗 分享網址生成成功</h2>
@@ -210,7 +246,7 @@
         </div>
     </div>
 
-    <!-- 控制面板 -->
+    <!-- 控制面板 (已優化排版) -->
     <div class="control-panel" id="uiPanel">
         <div class="row">
             <label>文字輸入</label>
@@ -218,19 +254,31 @@
                 <textarea id="textInput" placeholder="每行一列文字..."></textarea>
             </div>
         </div>
-        <div class="row">
-            <label>每列秒數</label>
-            <input type="number" id="durationInput" value="4" min="2" max="20" style="max-width: 70px;">
-            <label style="min-width:auto; margin-left:5px;">字型</label>
-            <select id="fontSelect">
-                <!-- 🛠 調整字型家族名稱，確保在 iOS、Android、Windows 的 Canvas 上皆有明顯形狀變化 -->
-                <option value='"PingFang TC", "Heiti TC", "微軟正黑體", sans-serif'>經典粗黑體 (預設)</option>
-                <option value='"DFKai-SB", "BiauKai", "PMingLiU", "新細明體", serif'>傳統標楷/明體 (細)</option>
-                <option value='"Times New Roman", "Georgia", serif'>英數襯線體 (古典)</option>
-            </select>
-            <label style="min-width:auto; margin-left:5px;">顏色</label>
-            <input type="color" id="colorPicker" value="#ffffff">
+        
+        <!-- 使用 settings-grid 改良，手機寬度不夠時會自動完美錯開 -->
+        <div class="settings-grid">
+            <div class="setting-item" style="max-width: 120px;">
+                <label style="min-width: auto;">秒數</label>
+                <input type="number" id="durationInput" value="4" min="2" max="20">
+            </div>
+            
+            <div class="setting-item">
+                <label style="min-width: auto;">字型</label>
+                <select id="fontSelect">
+                    <option value='"PingFang TC", "Heiti TC", "微軟正黑體", sans-serif'>經典粗黑體 (預設)</option>
+                    <option value='"DFKai-SB", "BiauKai", "PMingLiU", "新細明體", serif'>傳統標楷/明體 (細)</option>
+                    <option value='"Times New Roman", "Georgia", serif'>英數襯線體 (古典)</option>
+                </select>
+            </div>
+            
+            <div class="setting-item color-item">
+                <label style="min-width: auto;">顏色</label>
+                <div class="color-picker-wrapper" id="colorPickerWrapper">
+                    <input type="color" id="colorPicker" value="#ffffff">
+                </div>
+            </div>
         </div>
+        
         <div class="btn-group">
             <button class="btn btn-secondary" id="applyBtn">更新重播</button>
             <button class="btn" id="recordBtn">🔴 錄製製作</button>
@@ -404,7 +452,6 @@
             });
         }
 
-        // ✨ 導入與範例相同的字型強制加載快取重繪機制
         function triggerFontChange() {
             commitSettings();
             let count = 0;
@@ -528,15 +575,17 @@
             lineDuration = parseInt(document.getElementById('durationInput').value, 10) * 1000;
             currentFont = document.getElementById('fontSelect').value;
             baseColor = document.getElementById('colorPicker').value;
+            
+            // 動態更新外圍圓圈的顏色顯示
+            document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
         }
 
-        // ================= 🔗 修正版：網址完全防亂碼傳送模組 =================
+        // ================= 🔗 網址傳送模組 =================
         function generateShareLink() {
             commitSettings();
 
-            // 放棄不穩定的 Base64 加密，改用標準 URLSearchParams 進行萬國碼原生編碼
             const urlParams = new URLSearchParams();
-            urlParams.set('lines', textLines.join('||')); // 用特殊符號隔開每行
+            urlParams.set('lines', textLines.join('||')); 
             urlParams.set('duration', lineDuration);
             urlParams.set('font', currentFont);
             urlParams.set('color', baseColor);
@@ -549,7 +598,7 @@
 
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert("網址已成功複製！可以貼上分享給好友，絕不產生亂碼。");
+                    alert("網址已成功複製！可以貼上分享給好友。");
                 }).catch(() => {});
             }
         }
@@ -561,7 +610,6 @@
             startCarousel();
         });
 
-        // 選單一切換就立刻調用快取強制刷新機制
         document.getElementById('fontSelect').addEventListener('change', triggerFontChange);
         document.getElementById('colorPicker').addEventListener('input', triggerFontChange);
 
@@ -581,18 +629,16 @@
             loadTextLine(textLines[currentLineIndex]);
         });
 
-        // ================= 🔗 修正版：網址參數安全讀取模組 =================
+        // ================= 🔗 讀取參數 =================
         const params = new URLSearchParams(window.location.search);
         if (params.has('lines')) {
             try {
-                // 安全解構原生網址編碼，杜絕亂碼
                 textLines = params.get('lines').split('||');
                 lineDuration = parseInt(params.get('duration'), 10);
                 currentFont = params.get('font');
                 baseColor = params.get('color');
                 
-                document.getElementById('uiPanel').classList.add('hidden');
-                document.getElementById('mainTip').innerText = "觸碰螢幕讓細粉散開";
+                document.getElementById('mainTip').innerText = "觸碰畫面粉末飛散 / 點擊下方面板設定";
             } catch (e) {
                 console.error("網址參數解析錯誤", e);
             }
@@ -602,6 +648,7 @@
         document.getElementById('textInput').value = textLines.join('\n');
         document.getElementById('fontSelect').value = currentFont;
         document.getElementById('colorPicker').value = baseColor;
+        document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
         document.getElementById('durationInput').value = lineDuration / 1000;
 
         startCarousel();
