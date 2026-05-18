@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 介面優化完美版</title>
+    <title>粒子字體特效 - 收訊者純淨版</title>
     <style>
         * {
             margin: 0;
@@ -24,7 +24,7 @@
             cursor: pointer;
         }
         
-        /* 📱 UI 控制面板響應式優化 */
+        /* 📱 UI 控制面板 */
         .control-panel {
             position: absolute;
             bottom: 20px;
@@ -77,10 +77,9 @@
             line-height: 1.4;
         }
 
-        /* 🛠 針對設定項目的彈性包裹排版（解決遮蔽問題） */
         .settings-grid {
             display: flex;
-            flex-wrap: wrap; /* 自動換行 */
+            flex-wrap: wrap;
             gap: 12px;
             align-items: center;
             width: 100%;
@@ -91,10 +90,9 @@
             align-items: center;
             gap: 6px;
             flex: 1;
-            min-width: 120px; /* 確保手機上能適度切開換行 */
+            min-width: 120px;
         }
         
-        /* 當寬度夠小，將顏色與字型獨立分配空間，防止擠壓 */
         .setting-item.color-item {
             flex: 0 0 auto;
             min-width: auto;
@@ -112,7 +110,6 @@
             height: 32px;
         }
         
-        /* 🎨 優化後的顏色選擇器外觀 */
         .color-picker-wrapper {
             position: relative;
             width: 32px;
@@ -133,7 +130,6 @@
             background: none;
         }
 
-        /* 按鈕群組 */
         .btn-group {
             display: flex;
             gap: 8px;
@@ -224,6 +220,7 @@
 </head>
 <body>
 
+    <!-- 頂部提示，寄件者看的到，收訊者會被直接刪除 -->
     <div class="tip" id="mainTip">觸碰畫面粉末飛散 / 點擊下方面板設定</div>
     
     <!-- 🎥 錄影下載視窗 -->
@@ -246,7 +243,7 @@
         </div>
     </div>
 
-    <!-- 控制面板 (已優化排版) -->
+    <!-- 控制面板 -->
     <div class="control-panel" id="uiPanel">
         <div class="row">
             <label>文字輸入</label>
@@ -255,7 +252,6 @@
             </div>
         </div>
         
-        <!-- 使用 settings-grid 改良，手機寬度不夠時會自動完美錯開 -->
         <div class="settings-grid">
             <div class="setting-item" style="max-width: 120px;">
                 <label style="min-width: auto;">秒數</label>
@@ -476,6 +472,7 @@
         }
 
         function handleExplode(e) {
+            // 防止點擊 UI 元件時觸發爆炸
             if (e.target.closest('#uiPanel') || e.target.closest('.overlay')) return;
 
             phase = "exploded";
@@ -576,7 +573,6 @@
             currentFont = document.getElementById('fontSelect').value;
             baseColor = document.getElementById('colorPicker').value;
             
-            // 動態更新外圍圓圈的顏色顯示
             document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
         }
 
@@ -629,7 +625,7 @@
             loadTextLine(textLines[currentLineIndex]);
         });
 
-        // ================= 🔗 讀取參數 =================
+        // ================= 🔗 讀取參數 (✨ 核心修正：收訊者徹底拔除 UI) =================
         const params = new URLSearchParams(window.location.search);
         if (params.has('lines')) {
             try {
@@ -638,18 +634,26 @@
                 currentFont = params.get('font');
                 baseColor = params.get('color');
                 
-                document.getElementById('mainTip').innerText = "觸碰畫面粉末飛散 / 點擊下方面板設定";
+                // 🛑 偵測到是收訊者：直接從 DOM 中完全移除控制面板和提示文字
+                const panel = document.getElementById('uiPanel');
+                const tip = document.getElementById('mainTip');
+                if (panel) panel.remove();
+                if (tip) tip.remove();
+                
             } catch (e) {
                 console.error("網址參數解析錯誤", e);
             }
         }
 
-        // 初始化輸入欄位的 UI 顯示值
-        document.getElementById('textInput').value = textLines.join('\n');
-        document.getElementById('fontSelect').value = currentFont;
-        document.getElementById('colorPicker').value = baseColor;
-        document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
-        document.getElementById('durationInput').value = lineDuration / 1000;
+        // 初始化輸入欄位的 UI 顯示值 (只有寄件者看得到)
+        const textInputEl = document.getElementById('textInput');
+        if (textInputEl) {
+            textInputEl.value = textLines.join('\n');
+            document.getElementById('fontSelect').value = currentFont;
+            document.getElementById('colorPicker').value = baseColor;
+            document.getElementById('colorPickerWrapper').style.backgroundColor = baseColor;
+            document.getElementById('durationInput').value = lineDuration / 1000;
+        }
 
         startCarousel();
         requestAnimationFrame(animate);
