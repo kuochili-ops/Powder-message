@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粒子字體特效 - 完美無正方形修正版</title>
+    <title>粒子字體特效 - 符號正方形完美修正版</title>
     <style>
         * {
             margin: 0;
@@ -309,7 +309,6 @@
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
 
-        // 🛑 移除原本帶有純空格的初始文字，改用乾淨字串
         let textLines = ["微風拂過", "細粉飛散", "凝聚成字"];
         let currentLineIndex = 0;
         let lineDuration = 4000; 
@@ -332,6 +331,7 @@
             return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
         }
 
+        // ✨ 核心修正：將時間與日期完全「中文化」，避開可能造成正方形錯誤的特殊符號 (/) 與 (:)
         function getFormattedDateTimeStrings() {
             const now = new Date();
             const year = now.getFullYear();
@@ -340,7 +340,7 @@
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             
-            return [`${year}/${month}/${day}`, `${hours}:${minutes}`];
+            return [`${year}年${month}月${day}日`, `${hours}點${minutes}分`];
         }
 
         class Particle {
@@ -416,7 +416,6 @@
             phase = "turbulent";
             stateTimer = 0;
 
-            // ✨ 核心修正：如果偵測到是完全空白、空格、或是特定留白代號，粒子直接散開到隨機位置，不再渲染 Canvas 避免產生實心正方形
             if (!text || text.trim() === "" || text === "___BLANK___") {
                 particles.forEach(p => {
                     p.targetX = width / 2 + (Math.random() - 0.5) * (width * 0.6);
@@ -597,11 +596,9 @@
         }
 
         function commitSettings() {
-            // 過濾掉真正的空白空行
             let rawLines = document.getElementById('textInput').value.split('\n').map(l => l.trim()).filter(l => l !== "");
             if(rawLines.length === 0) rawLines = [""];
             
-            // ✨ 修正：如果加上時間，中間改用安全留白代碼 "___BLANK___" 來過渡，徹底移除純空格
             if (document.getElementById('includeTimeCheck').checked) {
                 const timeStrings = getFormattedDateTimeStrings();
                 textLines = [...rawLines, "___BLANK___", timeStrings[0], timeStrings[1]];
@@ -689,12 +686,12 @@
             }
         }
 
-        // 初始化編輯欄位 (過濾掉時間與安全留白代碼)
+        // 初始化編輯欄位 (過濾掉時間欄位，避免重複累加)
         const textInputEl = document.getElementById('textInput');
         if (textInputEl) {
             textInputEl.value = textLines.filter(line => 
-                !line.match(/^\d{4}\/\d{2}\/\d{2}$/) && 
-                !line.match(/^\d{2}:\d{2}$/) && 
+                !line.includes('年') && !line.includes('月') && !line.includes('日') &&
+                !line.includes('點') && !line.includes('分') && 
                 line !== "___BLANK___"
             ).join('\n');
             document.getElementById('fontSelect').value = currentFont;
